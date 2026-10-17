@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Dragonflight - 세로 스크롤 슈팅</title>
+<style>
+html,body{margin:0;padding:0;background:#020617;color:#e2e8f0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;height:100%}
+canvas{display:block;background:radial-gradient(#0b1228,#020617);touch-action:none}
+#ui{position:absolute;top:0;left:0;width:100%;pointer-events:none}
+#hud{position:absolute;top:10px;left:10px;font-size:14px;line-height:1.4}
+#hud span{display:inline-block;margin-right:16px}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.85);pointer-events:auto}
+.card{background:#0b1228;border:1px solid #1e293b;border-radius:16px;padding:28px 32px;text-align:center;max-width:420px;width:90%}
+h1{margin:0 0 8px;font-size:28px}
+p{margin:6px 0;color:#cbd5e1}
+button{background:#22d3ee;border:none;color:#002;font-weight:700;padding:12px 20px;border-radius:10px;font-size:16px;cursor:pointer}
+button:hover{background:#67e8f9}
+#title{font-size:36px;font-weight:800;margin-bottom:6px}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+<div id="hud">
+<span id="score">Score 0</span>
+<span id="dist">Distance 0m</span>
+<span id="coins">Coins 0</span>
+<span id="kills">Kills 0</span>
+<span id="stage">Stage 1</span>
+<span id="credits">Credits 0</span>
+</div>
+<div id="overlay">
+<div class="card">
+<div id="title">DRAGONFLIGHT</div>
+<h1>세로 스크롤 슈팅</h1>
+<p>용은 아래에서 좌우 이동. 공격은 자동.</p>
+<p>← → 키 또는 마우스 / 터치 드래그로 이동</p>
+<p>적 처치 시 코인 드롭. 운석 경고 후 낙하.</p>
+<p id="creditDisplay">Credits 0</p>
+<button id="coinBtn">Coin Insert</button>
+<button id="startBtn">게임 시작</button>
+<div id="gameOverMsg" style="display:none;margin-top:16px">
+<h2>Game Over</h2>
+<p id="finalStats"></p>
+<button id="retryBtn">다시 시작</button>
+</div>
+<div id="continueMsg" style="display:none;margin-top:16px">
+<h2>Game Over</h2>
+<p id="continueStats"></p>
+<p id="continueTimer">Continue in 10s (1 Credit)</p>
+<button id="continueBtn">Continue</button>
+<button id="titleBtn">Title</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight}
+addEventListener('resize',resize);resize();
+
+const hudScore=document.getElementById('score');
+const hudDist=document.getElementById('dist');
+const hudCoins=document.getElementById('coins');
+const hudKills=document.getElementById('kills');
+const hudStage=document.getElementById('stage');
+const hudCredits=document.getElementById('credits');
+const overlay=document.getElementById('overlay');
+const startBtn=document.getElementById('startBtn');
+const retryBtn=document.getElementById('retryBtn');
+const gameOverMsg=document.getElementById('gameOverMsg');
+const finalStats=document.getElementById('finalStats');
+const coinBtn=document.getElementById('coinBtn');
+const creditDisplay=document.getElementById('creditDisplay');
+const continueMsg=document.getElementById('continueMsg');
+const continueStats=document.getElementById('continueStats');
+const continueTimerEl=document.getElementById('continueTimer');
+const continueBtn=document.getElementById('continueBtn');
+const titleBtn=document.getElementById('titleBtn');
+
+let state='title';
+let player,bullets,enemies,coins,items,meteors,meteorWarnings,particles,stars;
+let score=0,distance=0,kills=0,coinsCollected=0;
+let speedMul=1;
+let lastTime=0;
+let bossSpawnDist=0;
+let credits=0;
+let stage=1;
+let continueTimer=0;
+
+function updateCreditUI(){
+  hudCredits.textContent=`Credits ${credits}`;
+  creditDisplay.textContent=`Credits ${credits}`;
+}
+function reset(){
+  player={x:W/2,y:H-80,w:64,h:48,vx:0,speed:420,shield:0,shieldTimer:0,attackBoost:0,attackBoostTimer:0,magnet:0,magnetTimer:0};
+  bullets=[]; enemies=[]; coins=[]; items=[]; meteors=[]; meteorWarnings=[]; particles=[]; stars=[];
+  for(let i=0;i<120;i++) stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+0.5});
+  score=0; distance=0; kills=0; coinsCollected=0; speedMul=1; bossSpawnDist=800; stage=1;
+  spawnWave();
+}
+function spawnWave(){
+  const rows=3+Math.floor(distance/600);
+  const cols=6+Math.floor(distance/800);
+  const yStart= -rows*60;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(Math.random()<0.7){
+        const x= 80 + c*(W-160)/cols + (Math.random()-0.5)*20;
+        const hp=1+Math.floor(distance/500)+stage;
+        enemies.push({x,y:yStart - r*70,w:48,h:48,hp,hpMax:hp,vy:60*speedMul,alive:true});
+      }
+    }
+  }
+}
+function spawnBoss(){
+  const b={x:W/2,y:-120,w:140,h:120,hp:20+Math.floor(distance/300)+stage*5,hpMax:20+Math.floor(distance/300)+stage*5,vy:40*speedMul,alive:true,isBoss:true,phase:0};
+  enemies.push(b);
+}
+function spawnMeteorWarning(){
+  const y=-60;
+  const x=Math.random()*(W-120)+60;
+  meteorWarnings.push({x,y,w:80,h:80,timer:120});
+}
+function update(dt){
+  if(state!=='play') {
+    if(state==='over'){
+      continueTimer-=dt;
+      const t=Math.max(0,Math.ceil(continueTimer));
+      continueTimerEl.textContent=`Continue in ${t}s (1 Credit) - Credits ${credits}`;
+      if(continueTimer<=0 || credits<=0){
+        returnToTitle();
+      }
+    }
+    return;
+  }
+  distance+=dt*60*speedMul;
+  if(distance%600<60 && Math.random()<0.3) spawnMeteorWarning();
+  if(distance>bossSpawnDist){ spawnBoss(); bossSpawnDist+=1200; }
+
+  let targetX=player.x;
+  if(keys.ArrowLeft||keys.a) targetX-=player.speed*dt;
+  if(keys.ArrowRight||keys.d) targetX+=player.speed*dt;
+  if(touchActive) targetX=touchX;
+  else if(mouseActive) targetX=mouseX;
+  player.x=Math.max(player.w/2,Math.min(W-player.w/2,targetX));
+  if(player.shieldTimer>0){player.shieldTimer-=dt; if(player.shieldTimer<=0) player.shield=0}
+  if(player.attackBoostTimer>0){player.attackBoostTimer-=dt; if(player.attackBoostTimer<=0) player.attackBoost=0}
+  if(player.magnetTimer>0){player.magnetTimer-=dt; if(player.magnetTimer<=0) player.magnet=0}
+
+  if(performance.now()% (200 - player.attackBoost*100) < dt*1000){
+    bullets.push({x:player.x,y:player.y-40,w:4,h:14,vy:-600*speedMul});
+  }
+
+  bullets=bullets.filter(b=>b.y>-20);
+  for(const b of bullets){ b.y+=b.vy*dt; }
+
+  let waveCleared=true;
+  for(const e of enemies){
+    if(!e.alive) continue;
+    waveCleared=false;
+    e.y+=e.vy*dt;
+    if(e.y>H+100){ e.alive=false; }
+    if(collide(player,e) && player.shield<=0){ gameOver(); }
+  }
+  enemies=enemies.filter(e=>e.alive || e.y<H+200);
+
+  for(const b of bullets){
+    for(const e of enemies){
+      if(!e.alive) continue;
+      if(collide(b,e)){
+        e.hp-=1+player.attackBoost;
+        particles.push({x:e.x,y:e.y,life:0.3});
+        if(e.hp<=0){
+          e.alive=false;
+          kills++; score+=e.isBoss?500:20;
+          for(let i=0;i<3;i++) coins.push({x:e.x+(Math.random()-0.5)*40,y:e.y,r:6,vy:40});
+          if(Math.random()<0.15) items.push({x:e.x,y:e.y,type:['attack','magnet','shield'][Math.floor(Math.random()*3)],life:8});
+          if(e.isBoss){ score+=1000; stage++; bossSpawnDist+=200; }
+        }
+        b.y=-100; break;
+      }
+    }
+  }
+
+  for(const w of meteorWarnings){
+    w.timer-=dt;
+    if(w.timer<=0){
+      meteors.push({x:w.x,y:-80,w:60,h:60,vy:220*speedMul});
+    }
+  }
+  meteorWarnings=meteorWarnings.filter(w=>w.timer>0);
+
+  for(const m of meteors){
+    m.y+=m.vy*dt;
+    if(collide(player,m) && player.shield<=0){ gameOver(); }
+  }
+  meteors=meteors.filter(m=>m.y<H+100);
+
+  for(const c of coins){
+    c.y+=c.vy*dt; c.vy+=300*dt;
+    if(player.magnet){
+      const dx=player.x-c.x, dy=player.y-c.y;
+      const d=Math.hypot(dx,dy);
+      if(d<200){ c.x+=dx/d*300*dt; c.y+=dy/d*300*dt; }
+    }
+    if(collidePoint(player.x,player.y,c.x,c.y,30)){
+      coinsCollected++; score+=10; c.collected=true;
+    }
+  }
+  coins=coins.filter(c=>!c.collected && c.y<H+100);
+
+  for(const it of items){
+    it.life-=dt;
+    it.y+=60*dt;
+    if(collidePoint(player.x,player.y,it.x,it.y,40)){
+      if(it.type==='attack'){player.attackBoost=1;player.attackBoostTimer=8}
+      if(it.type==='magnet'){player.magnet=1;player.magnetTimer=10}
+      if(it.type==='shield'){player.shield=1;player.shieldTimer=8}
+      it.life=0;
+    }
+  }
+  items=items.filter(it=>it.life>0);
+
+  particles=particles.filter(p=> (p.life-=dt)>0 );
+
+  for(const s of stars){ s.y+=20*s.s*dt*speedMul; if(s.y>H){s.y=-10; s.x=Math.random()*W} }
+
+  speedMul=1+distance/2000;
+
+  if(waveCleared && enemies.length===0){
+    setTimeout(spawnWave,500);
+  }
+
+  hudScore.textContent=`Score ${Math.floor(score)}`;
+  hudDist.textContent=`Distance ${Math.floor(distance)}m`;
+  hudCoins.textContent=`Coins ${coinsCollected}`;
+  hudKills.textContent=`Kills ${kills}`;
+  hudStage.textContent=`Stage ${stage}`;
+  updateCreditUI();
+}
+function collide(a,b){
+  return a.x - a.w/2 < b.x + b.w/2 && a.x + a.w/2 > b.x - b.w/2 && a.y - a.h/2 < b.y + b.h/2 && a.y + a.h/2 > b.y - b.h/2;
+}
+function collidePoint(px,py,cx,cy,r){ return Math.hypot(px-cx,py-cy)<r+30 }
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#020617'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0ea5e9';
+  for(const s of stars){ ctx.globalAlpha=0.6; ctx.beginPath(); ctx.arc(s.x,s.y,s.s,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
+
+  for(const w of meteorWarnings){
+    ctx.strokeStyle='#facc15'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(w.x,w.y,w.w/2,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(250,204,21,0.2)'; ctx.beginPath(); ctx.arc(w.x,w.y,w.w/2,0,Math.PI*2); ctx.fill();
+  }
+
+  for(const m of meteors){
+    ctx.fillStyle='#fb923c'; ctx.fillRect(m.x-m.w/2,m.y-m.h/2,m.w,m.h);
+  }
+
+  for(const it of items){
+    ctx.fillStyle=it.type==='attack'?'#f87171':it.type==='magnet'?'#a78bfa':'#60a5fa';
+    ctx.beginPath(); ctx.arc(it.x,it.y,12,0,Math.PI*2); ctx.fill();
+  }
+
+  for(const c of coins){
+    ctx.fillStyle='#fde047'; ctx.beginPath(); ctx.arc(c.x,c.y,c.r,0,Math.PI*2); ctx.fill();
+  }
+
+  for(const e of enemies){
+    if(!e.alive) continue;
+    ctx.fillStyle=e.isBoss?'#dc2626':'#e11d48';
+    ctx.fillRect(e.x-e.w/2,e.y-e.h/2,e.w,e.h);
+    ctx.fillStyle='#0f172a'; ctx.fillRect(e.x-e.w/2,e.y-e.h/2-10,e.w,6);
+    ctx.fillStyle='#22c55e'; ctx.fillRect(e.x-e.w/2,e.y-e.h/2-10,e.w*(e.hp/e.hpMax),6);
+  }
+
+  ctx.fillStyle='#67e8f9';
+  for(const b of bullets){ ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h); }
+
+  ctx.save();
+  ctx.translate(player.x,player.y);
+  if(player.shield>0){ ctx.strokeStyle='#60a5fa'; ctx.lineWidth=4; ctx.beginPath(); ctx.ellipse(0,0,48,48,0,0,Math.PI*2); ctx.stroke(); }
+  ctx.fillStyle='#facc15';
+  ctx.beginPath(); ctx.ellipse(0,0,32,20,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fde047';
+  ctx.beginPath(); ctx.ellipse(-20,-10,16,16,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(20,-10,16,16,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  for(const p of particles){ ctx.fillStyle='#fbbf24'; ctx.globalAlpha=p.life; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha=1;
+}
+function gameLoop(t){
+  const dt=Math.min(0.033,(t-lastTime)/1000); lastTime=t;
+  update(dt); draw();
+  requestAnimationFrame(gameLoop);
+}
+function gameOver(){
+  state='over';
+  continueTimer=10;
+  overlay.style.display='flex';
+  gameOverMsg.style.display='none';
+  continueMsg.style.display='block';
+  continueStats.textContent=`Score ${Math.floor(score)} · Distance ${Math.floor(distance)}m · Coins ${coinsCollected} · Kills ${kills} · Stage ${stage}`;
+}
+function returnToTitle(){
+  state='title';
+  overlay.style.display='flex';
+  continueMsg.style.display='none';
+  gameOverMsg.style.display='none';
+  reset();
+}
+function insertCredit(){
+  credits++;
+  updateCreditUI();
+}
+const keys={};
+addEventListener('keydown',e=>{
+  if(['ArrowLeft','ArrowRight','a','d'].includes(e.key)) keys[e.key]=true;
+  if(state==='title' && (e.key==='Enter' || e.key==='1')){
+    insertCredit();
+  }
+});
+addEventListener('keyup',e=>{if(['ArrowLeft','ArrowRight','a','d'].includes(e.key)) keys[e.key]=false});
+
+let mouseActive=false, mouseX=W/2;
+let touchActive=false, touchX=W/2;
+canvas.addEventListener('mousemove',e=>{mouseX=e.clientX; mouseActive=true});
+canvas.addEventListener('mouseleave',()=>mouseActive=false);
+canvas.addEventListener('click',()=>mouseActive=true);
+canvas.addEventListener('touchstart',e=>{touchX=e.touches[0].clientX; touchActive=true; e.preventDefault();},{passive:false});
+canvas.addEventListener('touchmove',e=>{touchX=e.touches[0].clientX; e.preventDefault();},{passive:false});
+canvas.addEventListener('touchend',()=>{touchActive=false});
+
+startBtn.onclick=()=>{
+  if(credits<=0){ alert('Insert credit first'); return; }
+  credits--; updateCreditUI();
+  overlay.style.display='none';
+  continueMsg.style.display='none';
+  gameOverMsg.style.display='none';
+  reset();
+  state='play';
+  lastTime=performance.now();
+};
+retryBtn.onclick=()=>{
+  overlay.style.display='none';
+  gameOverMsg.style.display='none';
+  reset();
+  state='play';
+  lastTime=performance.now();
+};
+coinBtn.onclick=insertCredit;
+continueBtn.onclick=()=>{
+  if(credits<=0) return;
+  credits--; updateCreditUI();
+  state='play';
+  overlay.style.display='none';
+  continueMsg.style.display='none';
+  lastTime=performance.now();
+};
+titleBtn.onclick=returnToTitle;
+
+updateCreditUI();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
