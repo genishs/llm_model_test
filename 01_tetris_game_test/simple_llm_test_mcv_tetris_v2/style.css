@@ -1,0 +1,186 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#header {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#header h1 {
+    font-size: 36px;
+    color: #ff0000;
+    text-shadow: 2px 2px #0000ff;
+    letter-spacing: 4px;
+}
+
+#score-board {
+    display: flex;
+    gap: 30px;
+    margin-top: 10px;
+}
+
+.score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.score-item span:first-child {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.score-item span:last-child {
+    font-size: 20px;
+    color: #fff;
+    font-weight: bold;
+}
+
+#game-area {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#game-canvas {
+    border: 2px solid #fff;
+    image-rendering: pixelated;
+}
+
+#next-piece {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#next-piece span {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 5px;
+}
+
+#next-canvas {
+    border: 1px solid #555;
+    image-rendering: pixelated;
+}
+
+#controls {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+}
+
+#controls h3 {
+    color: #fff;
+    margin-bottom: 5px;
+}
+
+/* Touch controls for mobile */
+#touch-controls {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 10px;
+    gap: 5px;
+}
+
+.touch-row {
+    display: flex;
+    gap: 10px;
+}
+
+.touch-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    background-color: #333;
+    color: #fff;
+    border: 2px solid #555;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.touch-btn:active {
+    background-color: #555;
+    border-color: #888;
+}
+
+.drop-btn {
+    width: 130px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* Responsive design for mobile */
+@media (max-width: 600px) {
+    #game-container {
+        transform: scale(0.8);
+        transform-origin: top center;
+    }
+    
+    #touch-controls {
+        display: flex;
+    }
+    
+    #controls {
+        display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    #game-container {
+        transform: scale(0.65);
+    }
+}
+
+#overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+#overlay-content {
+    text-align: center;
+}
+
+#overlay-content h2 {
+    font-size: 48px;
+    color: #ff0000;
+    text-shadow: 3px 3px #0000ff;
+    margin-bottom: 20px;
+}
+
+#overlay-content p {
+    font-size: 18px;
+    color: #fff;
+}
