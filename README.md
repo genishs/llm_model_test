@@ -88,6 +88,7 @@
 - simple_llm_test_aw_dragonflight_v1 — 파일 없음
 - [simple_llm_test_bolt_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_bolt_dragonflight_v1/index.html)
 - [simple_llm_test_cn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_cn_dragonflight_v1/index.html)
+- [simple_llm_test_ff_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_ff_dragonflight_v1/index.html)
 - [simple_llm_test_fn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_fn_dragonflight_v1/index.html)
 - [simple_llm_test_lfm_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_lfm_dragonflight_v1/index.html)
 - [simple_llm_test_mcv_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mcv_dragonflight_v1/index.html)
