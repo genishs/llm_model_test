@@ -164,6 +164,7 @@
 - [simple_llm_test_mel_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_mel_defense_v1/index.html)
 - [simple_llm_test_mg_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_mg_defense_v1/index.html)
 - [simple_llm_test_orn_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_orn_defense_v1/index.html)
+- [simple_llm_test_orn_defense_v2](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_orn_defense_v2/index.html)
 - [simple_llm_test_q36_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_q36_defense_v1/index.html)
 - [simple_llm_test_q36_defense_v2](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_q36_defense_v2/index.html)
 - [simple_llm_test_q38_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_q38_defense_v1/index.html)
