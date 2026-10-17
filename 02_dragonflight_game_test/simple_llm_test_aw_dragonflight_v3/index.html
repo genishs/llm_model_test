@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dragon Flight Game - Arcade Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e, #0f3460);
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        #ui .credit-display {
+            color: #ffd700;
+            font-weight: bold;
+        }
+        #gameOver, #titleScreen, #continueScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            z-index: 20;
+        }
+        #gameOver, #continueScreen {
+            display: none;
+        }
+        #titleScreen {
+            display: block;
+        }
+        #titleScreen h1, #gameOver h2, #continueScreen h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+        }
+        #titleScreen .credits-info, #gameOver .score-info, #continueScreen .continue-info {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        #titleScreen button, #gameOver button, #continueScreen button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            margin: 10px;
+        }
+        #titleScreen button:hover, #gameOver button:hover, #continueScreen button:hover {
+            background: #ff6b6b;
+        }
+        #titleScreen .insert-credit-btn {
+            background: #4ecca3;
+        }
+        #titleScreen .insert-credit-btn:hover {
+            background: #5dd6b0;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            text-align: center;
+            z-index: 10;
+        }
+        #stageDisplay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
+            z-index: 15;
+            display: none;
+        }
+        #bossHealthBar {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid white;
+            z-index: 10;
+            display: none;
+        }
+        #bossHealthFill {
+            height: 100%;
+            background: #e94560;
+            width: 100%;
+            transition: width 0.3s;
+        }
+        .credit-flash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #4ecca3;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 30;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>Stage: <span id="stage">1</span></div>
+        <div class="credit-display">CREDITS: <span id="credits">0</span></div>
+        <div>High Score: <span id="highScore">0</span></div>
+    </div>
+    
+    <div id="stageDisplay">STAGE 1</div>
+    <div id="bossHealthBar"><div id="bossHealthFill"></div></div>
+
+    <div id="titleScreen">
+        <h1>DRAGON FLIGHT</h1>
+        <div class="credits-info">CREDITS: <span id="titleCredits">0</span></div>
+        <button class="insert-credit-btn" id="insertCreditBtn">INSERT CREDIT (Press 'I')</button>
+        <br>
+        <button id="startBtn" onclick="startGame()" disabled>START GAME (Press 'S')</button>
+        <p style="margin-top: 20px; font-size: 14px; color: rgba(255,255,255,0.7);">
+            Dodge obstacles &amp; defeat the boss!<br>
+            Boss appears every 500 points to advance stages.
+        </p>
+    </div>
+
+    <div id="gameOver">
+        <h2>GAME OVER!</h2>
+        <div class="score-info">
+            <p>Score: <span id="finalScore">0</span></p>
+            <p>Stage: <span id="finalStage">1</span></p>
+        </div>
+        <button id="continueBtn">CONTINUE (Press 'C')</button>
+        <button onclick="returnToTitle()">RETURN TO TITLE</button>
+    </div>
+
+    <div id="continueScreen">
+        <h2>CONTINUE?</h2>
+        <div class="continue-info">
+            <p>Cost: 1 CREDIT</p>
+            <p>Remaining CREDITS: <span id="continueCredits">0</span></p>
+            <p id="continueCountdown">Countdown: 10</p>
+        </div>
+        <button id="confirmContinueBtn">CONFIRM CONTINUE (Press 'C')</button>
+        <button id="declineContinueBtn">DECLINE (Press 'N')</button>
+    </div>
+
+    <div id="instructions">
+        Desktop: Arrow Keys / A-D to move | Mobile: Touch & Drag to move | 'I': Insert Credit | 'S': Start | 'C': Continue
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let gameState = 'TITLE';
+        let score = 0;
+        let highScore = localStorage.getItem('dragonflight_highscore') || 0;
+        document.getElementById('highScore').textContent = highScore;
+        
+        let credits = 0;
+        let stage = 1;
+        let boss = null;
+        let bossFightTimer = 0;
+        let bossDefeatScore = 500;
+        let stageMessageTimer = 0;
+        let gameSpeed = 3;
+        let obstacleInterval = 60;
+        let obstacleTimer = 0;
+
+        const dragon = {
+            x: canvas.width / 2,
+            y: canvas.height - 150,
+            width: 60,
+            height: 60,
+            speed: 7,
+            color: '#e94560'
+        };
+
+        let obstacles = [];
+        let stars = [];
+        for (let i = 0; i < 50; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 1,
+                speed: Math.random() * 0.5 + 0.1
+            });
+        }
+
+        let keys = {};
+        let touchX = null;
+        let continueCountdown = 10;
+        let continueTimerInterval = null;
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (gameState === 'TITLE') {
+                if (e.key === 'i' || e.key === 'I') {
+                    insertCredit();
+                } else if (e.key === 's' || e.key === 'S') {
+                    if (credits > 0) startGame();
+                }
+            } else if (gameState === 'GAME_OVER') {
+                if (e.key === 'c' || e.key === 'C') {
+                    showContinue();
+                } else if (e.key === 'n' || e.key === 'N') {
+                    returnToTitle();
+                }
+            } else if (gameState === 'CONTINUE_COUNTDOWN') {
+                if (e.key === 'c' || e.key === 'C') {
+                    confirmContinue();
+                } else if (e.key === 'n' || e.key === 'N') {
+                    declineContinue();
+                }
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'PLAYING' || gameState === 'BOSS_FIGHT') {
+                touchX = e.touches[0].clientX;
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (gameState === 'PLAYING' || gameState === 'BOSS_FIGHT') {
+                if (touchX !== null) {
+                    const currentX = e.touches[0].clientX;
+                    const diff = currentX - touchX;
+                    dragon.x += diff;
+                    touchX = currentX;
+                }
+            }
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            touchX = null;
+        });
+
+        document.getElementById('insertCreditBtn').addEventListener('click', insertCredit);
+        document.getElementById('continueBtn').addEventListener('click', showContinue);
+        document.getElementById('confirmContinueBtn').addEventListener('click', confirmContinue);
+        document.getElementById('declineContinueBtn').addEventListener('click', declineContinue);
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('stage').textContent = stage;
+            document.getElementById('credits').textContent = credits;
+            document.getElementById('titleCredits').textContent = credits;
+            document.getElementById('continueCredits').textContent = credits;
+            
+            const startBtn = document.getElementById('startBtn');
+            if (credits > 0) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
+        }
+
+        function insertCredit() {
+            credits++;
+            updateUI();
+            const flash = document.createElement('div');
+            flash.className = 'credit-flash';
+            flash.textContent = 'CREDIT ADDED! CREDITS: ' + credits;
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 1000);
+        }
+
+        function showStageMessage(stageNum) {
+            const stageDisplay = document.getElementById('stageDisplay');
+            stageDisplay.textContent = 'STAGE ' + stageNum;
+            stageDisplay.style.display = 'block';
+            stageMessageTimer = 120;
+        }
+
+        function startGame() {
+            if (credits <= 0) return;
+            credits--;
+            updateUI();
+            
+            gameState = 'PLAYING';
+            score = 0;
+            stage = 1;
+            boss = null;
+            bossFightTimer = 0;
+            bossDefeatScore = 500;
+            gameSpeed = 3;
+            obstacleInterval = 60;
+            obstacleTimer = 0;
+            obstacles = [];
+            dragon.x = canvas.width / 2;
+            dragon.y = canvas.height - 150;
+            
+            document.getElementById('titleScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('continueScreen').style.display = 'none';
+            document.getElementById('bossHealthBar').style.display = 'none';
+            
+            showStageMessage(1);
+            gameLoop();
+        }
+
+        function updateDragon() {
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                dragon.x -= dragon.speed;
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                dragon.x += dragon.speed;
+            }
+            dragon.x = Math.max(dragon.width/2, Math.min(canvas.width - dragon.width/2, dragon.x));
+            dragon.y = Math.max(canvas.height - 200, Math.min(canvas.height - 100, dragon.y));
+        }
+
+        function createObstacle() {
+            const size = Math.random() * 30 + 30;
+            obstacles.push({
+                x: Math.random() * (canvas.width - size) + size/2,
+                y: -size,
+                width: size,
+                height: size,
+                color: '#ff6b6b',
+                isBossProjectile: false
+            });
+        }
+
+        function createBoss() {
+            boss = {
+                x: canvas.width / 2,
+                y: 100,
+                width: 100,
+                height: 100,
+                hp: 5 + stage * 2,
+                maxHp: 5 + stage * 2,
+                moveDir: 1,
+                shootTimer: 0
+            };
+            document.getElementById('bossHealthBar').style.display = 'block';
+            document.getElementById('bossHealthFill').style.width = '100%';
+        }
+
+        function updateObstacles() {
+            obstacleTimer++;
+            
+            if (gameState === 'PLAYING') {
+                if (obstacleTimer >= obstacleInterval) {
+                    createObstacle();
+                    obstacleTimer = 0;
+                    if (obstacleInterval > 30) {
+                        obstacleInterval -= 0.5;
+                    }
+                    gameSpeed += 0.01;
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    obstacles[i].y += gameSpeed;
+                    if (checkCollision(dragon, obstacles[i])) {
+                        if (!obstacles[i].isBossProjectile || !boss) {
+                            gameOver();
+                        }
+                    }
+                    if (obstacles[i].y > canvas.height + 50) {
+                        obstacles.splice(i, 1);
+                        score += 10;
+                        document.getElementById('score').textContent = score;
+                        checkBossSpawn();
+                    }
+                }
+            } else if (gameState === 'BOSS_FIGHT') {
+                bossFightTimer++;
+                if (boss) {
+                    boss.shootTimer++;
+                    if (boss.shootTimer >= 30) {
+                        boss.shootTimer = 0;
+                        for (let j = -2; j <= 2; j++) {
+                            obstacles.push({
+                                x: boss.x + j * 30,
+                                y: boss.y + boss.height/2,
+                                width: 20,
+                                height: 20,
+                                color: '#ff0000',
+                                isBossProjectile: true
+                            });
+                        }
+                    }
+                    boss.x += boss.moveDir * 2;
+                    if (boss.x <= boss.width/2 || boss.x >= canvas.width - boss.width/2) {
+                        boss.moveDir *= -1;
+                    }
+                    
+                    document.getElementById('bossHealthFill').style.width = (boss.hp / boss.maxHp * 100) + '%';
+                    
+                    if (bossFightTimer >= 300) {
+                        defeatBoss();
+                    }
+                }
+            }
+        }
+
+        function checkBossSpawn() {
+            if (score >= bossDefeatScore && !boss && gameState === 'PLAYING') {
+                gameState = 'BOSS_FIGHT';
+                bossFightTimer = 0;
+                createBoss();
+                obstacles = [];
+            }
+        }
+
+        function defeatBoss() {
+            boss = null;
+            document.getElementById('bossHealthBar').style.display = 'none';
+            stage++;
+            bossDefeatScore += 500;
+            gameSpeed += 0.5;
+            obstacleInterval = Math.max(30, 60 - stage * 5);
+            gameState = 'PLAYING';
+            showStageMessage(stage);
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x - rect1.width/2 < rect2.x + rect2.width/2 &&
+                   rect1.x + rect1.width/2 > rect2.x - rect2.width/2 &&
+                   rect1.y - rect1.height/2 < rect2.y + rect2.height/2 &&
+                   rect1.y + rect1.height/2 > rect2.y - rect2.height/2;
+        }
+
+        function drawDragon() {
+            ctx.save();
+            ctx.translate(dragon.x, dragon.y);
+            ctx.fillStyle = dragon.color;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, dragon.width/2, dragon.height/2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#c73e54';
+            const wingFlap = Math.sin(Date.now() / 100) * 10;
+            ctx.beginPath();
+            ctx.moveTo(-20, -10);
+            ctx.lineTo(-40, -30 + wingFlap);
+            ctx.lineTo(-30, 10);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(20, -10);
+            ctx.lineTo(40, -30 + wingFlap);
+            ctx.lineTo(30, 10);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(-15, -10, 8, 0, Math.PI * 2);
+            ctx.arc(15, -10, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(-15, -10, 4, 0, Math.PI * 2);
+            ctx.arc(15, -10, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.width/2, 0, Math.PI * 2);
+                ctx.fill();
+                if (!obs.isBossProjectile) {
+                    ctx.fillStyle = '#ff8787';
+                    ctx.beginPath();
+                    ctx.arc(obs.x - obs.width/6, obs.y - obs.width/6, obs.width/6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawBoss() {
+            if (boss) {
+                ctx.save();
+                ctx.translate(boss.x, boss.y);
+                ctx.fillStyle = '#8b0000';
+                ctx.beginPath();
+                ctx.arc(0, 0, boss.width/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(-20, -20, 15, 0, Math.PI * 2);
+                ctx.arc(20, -20, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(-20, -20, 7, 0, Math.PI * 2);
+                ctx.arc(20, -20, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function drawStars() {
+            stars.forEach(star => {
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        function gameOver() {
+            gameState = 'GAME_OVER';
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('dragonflight_highscore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalStage').textContent = stage;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('bossHealthBar').style.display = 'none';
+        }
+
+        function showContinue() {
+            if (credits <= 0) {
+                alert('No credits available! Please insert credits.');
+                return;
+            }
+            gameState = 'CONTINUE_COUNTDOWN';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('continueScreen').style.display = 'block';
+            continueCountdown = 10;
+            document.getElementById('continueCountdown').textContent = 'Countdown: ' + continueCountdown;
+            
+            if (continueTimerInterval) clearInterval(continueTimerInterval);
+            continueTimerInterval = setInterval(() => {
+                continueCountdown--;
+                document.getElementById('continueCountdown').textContent = 'Countdown: ' + continueCountdown;
+                if (continueCountdown <= 0) {
+                    clearInterval(continueTimerInterval);
+                    returnToTitle();
+                }
+            }, 1000);
+        }
+
+        function confirmContinue() {
+            if (credits <= 0 || gameState !== 'CONTINUE_COUNTDOWN') return;
+            credits--;
+            updateUI();
+            
+            clearInterval(continueTimerInterval);
+            gameState = 'PLAYING';
+            document.getElementById('continueScreen').style.display = 'none';
+            document.getElementById('bossHealthBar').style.display = 'none';
+            gameLoop();
+        }
+
+        function declineContinue() {
+            clearInterval(continueTimerInterval);
+            returnToTitle();
+        }
+
+        function returnToTitle() {
+            clearInterval(continueTimerInterval);
+            gameState = 'TITLE';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('continueScreen').style.display = 'none';
+            document.getElementById('stageDisplay').style.display = 'none';
+            document.getElementById('bossHealthBar').style.display = 'none';
+            document.getElementById('titleScreen').style.display = 'block';
+            updateUI();
+        }
+
+        function gameLoop() {
+            if (gameState === 'TITLE') return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawStars();
+
+            if (stageMessageTimer > 0) {
+                stageMessageTimer--;
+                if (stageMessageTimer === 0) {
+                    document.getElementById('stageDisplay').style.display = 'none';
+                }
+            }
+
+            updateDragon();
+            updateObstacles();
+            drawDragon();
+            drawObstacles();
+            drawBoss();
+
+            if (gameState === 'PLAYING' || gameState === 'BOSS_FIGHT') {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
