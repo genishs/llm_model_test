@@ -64,4 +64,4 @@ Mamba-2 + Transformer 혼합 LatentMoE. 전체 74B 중 활성 9B. 이미지·영
 
 ## 참가한 테스트
 
-- [01 테트리스 게임 테스트](../01_tetris_game_test/README.md) — 결과는 대회 종료 후 기입
+- [01 테트리스 게임 테스트](../01_tetris_game_test/README.md#9-결과--v1) — v1: 10위 / 총점 462 — 시작 직후 undefined 접근 예외로 빈 화면 (v2·v3 결과는 라운드 종료 후)

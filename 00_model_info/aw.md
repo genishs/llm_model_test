@@ -58,4 +58,4 @@ MoE. 전체 35B 중 활성 3B. **세계 모델(environment simulator)** - 도구
 
 ## 참가한 테스트
 
-- [01 테트리스 게임 테스트](../01_tetris_game_test/README.md) — 결과는 대회 종료 후 기입
+- [01 테트리스 게임 테스트](../01_tetris_game_test/README.md#9-결과--v1) — v1: 3위 / 총점 756.5 — 규칙은 가장 정확하나 시간 비교 오류로 자동 낙하가 없음 (v2·v3 결과는 라운드 종료 후)
