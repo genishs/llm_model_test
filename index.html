@@ -23,7 +23,7 @@ h1{font-size:1.8rem}h2{margin-top:2rem;border-bottom:1px solid var(--ln);padding
 <ul><li><a href="./01_tetris_game_test/">01 테트리스</a> — v1 만들기, v2 터치 조작, v3 레벨·크레딧·컨티뉴</li><li><a href="./02_dragonflight_game_test/">02 드래곤플라이트</a> — v1 만들기, v2 터치 조작, v3 스테이지·크레딧·컨티뉴</li></ul>
 <p>각 테스트 페이지에 라운드별 결과 게임 카드(점수·플레이·코드 링크)와 README(지시문 원문, 채점 방법, 결과 분석)가 있다. 참가 모델 15종의 제원은 <a href="https://github.com/genishs/llm_model_test/tree/main/00_model_info">모델 정보</a> 에 있다.</p>
 <h2>규칙</h2>
-<ul><li>서버: AMD Strix Halo(Radeon 8060S, 통합 메모리 64GB) · llama.cpp b11701 router 모드 · 모델은 한 번에 하나.</li><li>에이전트: opencode v1.18.35 <code>opencode run --auto -m halo/&lt;약어&gt;</code> — 모델마다 새 세션, 같은 지시문(폴더 이름만 다름).</li><li>샌드박스(bubblewrap): 각 모델은 <strong>자기 폴더만 쓸 수 있고</strong> 다른 모델의 폴더·서버의 다른 파일은 보이지 않는다. 웹 접근 차단. 1회 최대 60분.</li><li>각 모델의 router 기본 설정 그대로(생각 모드·샘플링은 모델별 프리셋).</li></ul>
+<ul><li>서버: AMD Strix Halo(Radeon 8060S, 통합 메모리 64GB) · llama.cpp b11701 router 모드 · 모델은 한 번에 하나.</li><li><code>mel</code> 만 b11539 엔진(이유는 01 README 4절).</li><li>에이전트: opencode v1.18.35 <code>opencode run --auto --pure -m halo/&lt;약어&gt;</code>(<code>--pure</code> 는 외부 플러그인 없이 실행) — 모델마다 새 세션, 같은 지시문(폴더 이름만 다름).</li><li>샌드박스(bubblewrap): 각 모델은 <strong>자기 폴더와 일회용 임시 홈에만 쓸 수 있고</strong> 다른 모델의 폴더·서버의 다른 파일은 보이지 않는다. 웹 가져오기(webfetch) 도구는 거부했다. 셸 네트워크는 막지 않았다 — 아래 감사 결과 참고. 1회 최대 60분.</li><li>네트워크 사용 감사(2026-10-17 기준): 실행 기록에서 모델이 셸로 외부에 접속한 흔적 <strong>0건 / 결과물 반영 0건</strong>. 게임 파일의 외부 URL(CDN·폰트 등)도 0건. 상세는 각 테스트 README 5절.</li><li>각 모델의 router 기본 설정 그대로(생각 모드·샘플링은 모델별 프리셋).</li></ul>
 <h2>지시문</h2>
 <p>아래는 01 테트리스 v1 지시문의 요약이다. 전체 원문(v1·v2·v3)과 02 드래곤플라이트의 지시문은 각 테스트 README 3절에 있다.</p>
 <p><code>simple_llm_test_&lt;약어&gt;_tetris_v1</code> 폴더 안에 —</p>

@@ -10,8 +10,10 @@
 
 ## 규칙
 - 서버: AMD Strix Halo(Radeon 8060S, 통합 메모리 64GB) · llama.cpp b11701 router 모드 · 모델은 한 번에 하나.
-- 에이전트: opencode v1.18.35 `opencode run --auto -m halo/<약어>` — 모델마다 새 세션, 같은 지시문(폴더 이름만 다름).
-- 샌드박스(bubblewrap): 각 모델은 **자기 폴더만 쓸 수 있고** 다른 모델의 폴더·서버의 다른 파일은 보이지 않는다. 웹 접근 차단. 1회 최대 60분.
+- `mel` 만 b11539 엔진(이유는 01 README 4절).
+- 에이전트: opencode v1.18.35 `opencode run --auto --pure -m halo/<약어>`(`--pure` 는 외부 플러그인 없이 실행) — 모델마다 새 세션, 같은 지시문(폴더 이름만 다름).
+- 샌드박스(bubblewrap): 각 모델은 **자기 폴더와 일회용 임시 홈에만 쓸 수 있고** 다른 모델의 폴더·서버의 다른 파일은 보이지 않는다. 웹 가져오기(webfetch) 도구는 거부했다. 셸 네트워크는 막지 않았다 — 아래 감사 결과 참고. 1회 최대 60분.
+- 네트워크 사용 감사(2026-10-17 기준): 실행 기록에서 모델이 셸로 외부에 접속한 흔적 **0건 / 결과물 반영 0건**. 게임 파일의 외부 URL(CDN·폰트 등)도 0건. 상세는 각 테스트 README 5절.
 - 각 모델의 router 기본 설정 그대로(생각 모드·샘플링은 모델별 프리셋).
 
 ## 지시문
@@ -86,6 +88,7 @@
 - simple_llm_test_aw_dragonflight_v1 — 파일 없음
 - [simple_llm_test_bolt_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_bolt_dragonflight_v1/index.html)
 - [simple_llm_test_cn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_cn_dragonflight_v1/index.html)
+- [simple_llm_test_fn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_fn_dragonflight_v1/index.html)
 - [simple_llm_test_lfm_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_lfm_dragonflight_v1/index.html)
 - [simple_llm_test_mcv_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mcv_dragonflight_v1/index.html)
 - [simple_llm_test_mg_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mg_dragonflight_v1/index.html)
