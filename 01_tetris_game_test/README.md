@@ -340,3 +340,4 @@ v3 결과는 라운드 종료 후 기입합니다.
 
 - 모델 정보: [00_model_info](../00_model_info/README.md)
 - 저장소 첫 화면: [llm_model_test](../README.md)
+- 다음 시험: [02 드래곤플라이트](../02_dragonflight_game_test/)
