@@ -1,0 +1,30 @@
+*{box-sizing:border-box}
+body{margin:0;background:#0b1220;color:#dfe9f5;font-family:'Segoe UI',system-ui,sans-serif}
+#hud{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#101a2c;border-bottom:1px solid #223249}
+#hud h1{font-size:16px;margin:0;letter-spacing:2px;color:#8fd3ff}
+.stat{font-size:14px;background:#16233a;padding:5px 10px;border-radius:6px}
+.stat b{color:#fff;font-size:16px}
+.gold b{color:#ffd479}.core b{color:#ff7b8a}
+button{background:#1d3050;color:#cfe4ff;border:1px solid #2f4a72;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px}
+button:hover{background:#274066}
+button:disabled{opacity:.4;cursor:not-allowed}
+main{display:flex;gap:14px;padding:14px}
+#stage{position:relative}
+canvas{background:#0e1a2b;border:1px solid #223249;border-radius:8px;display:block}
+#overlay{position:absolute;inset:0;background:rgba(6,12,22,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-radius:8px}
+#overlayTitle{font-size:34px;letter-spacing:3px}
+#overlayText{color:#9fb6d4}
+.hidden{display:none!important}
+#panel{width:250px;display:flex;flex-direction:column;gap:8px}
+#panel h2{font-size:12px;margin:6px 0 0;color:#7f9ec2;letter-spacing:2px;text-transform:uppercase}
+.shopCard{display:flex;align-items:center;gap:8px;background:#13203a;border:1px solid #24374f;border-radius:8px;padding:9px 10px;cursor:pointer;font-size:13px}
+.shopCard:hover{border-color:#3c6ea5}
+.shopCard.active{border-color:#5fb0ff;background:#182a48}
+.shopCard b{flex:1}
+.shopCard em{font-style:normal;color:#7f9ec2;font-size:11px}
+.shopCard i{font-style:normal;color:#ffd479}
+.shopCard .k{background:#22334d;border-radius:4px;padding:2px 6px;font-size:11px;color:#8fd3ff}
+#selInfo{background:#13203a;border:1px solid #24374f;border-radius:8px;padding:10px;font-size:12.5px;min-height:74px;line-height:1.5}
+#selActions{display:flex;gap:8px}
+#log{background:#13203a;border:1px solid #24374f;border-radius:8px;padding:8px;font-size:11.5px;height:120px;overflow:auto;color:#9fb6d4}
+footer{padding:8px 16px;color:#6b83a3;font-size:12px}
