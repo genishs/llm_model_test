@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple LLM Defense</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a12;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 {
+            text-shadow: 0 0 10px #00ff88;
+            margin: 10px 0;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+        }
+
+        .canvas-container {
+            position: relative;
+            border: 3px solid #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            flex-shrink: 0;
+        }
+
+        canvas {
+            display: block;
+            background: #0d0d16;
+            cursor: crosshair;
+            max-width: 100%;
+        }
+
+        .ui-panel {
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .ui-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .ui-panel::-webkit-scrollbar-track {
+            background: #0d0d16;
+        }
+
+        .ui-panel::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 4px;
+        }
+
+        .stats-panel {
+            background: #1a1a24;
+            padding: 15px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 1.1em;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .tower-selection {
+            background: #1a1a24;
+            padding: 15px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+        }
+
+        .tower-btn {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #0d0d16;
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tower-btn:hover {
+            background: #00ff88;
+            color: #0a0a12;
+        }
+
+        .tower-btn.selected {
+            background: #00ff88;
+            color: #0a0a12;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .tower-btn:active {
+            transform: scale(0.98);
+        }
+
+        .tower-info {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .wave-control {
+            background: #1a1a24;
+            padding: 15px;
+            border: 2px solid #00ff88;
+            border-radius: 8px;
+        }
+
+        .wave-btn {
+            width: 100%;
+            padding: 12px;
+            background: #ff0055;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .wave-btn:hover {
+            background: #ff3377;
+            box-shadow: 0 0 10px #ff0055;
+        }
+
+        .wave-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .wave-btn:active {
+            transform: scale(0.98);
+        }
+
+        .message-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 3px solid #00ff88;
+            text-align: center;
+            z-index: 100;
+            display: none;
+        }
+
+        .message-overlay h2 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .restart-btn {
+            padding: 10px 30px;
+            background: #00ff88;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .restart-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5em;
+                padding: 0 10px;
+            }
+
+            .game-container {
+                flex-direction: column;
+                padding: 10px;
+            }
+
+            .ui-panel {
+                width: 100%;
+                max-height: 40vh;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .stats-panel,
+            .tower-selection,
+            .wave-control,
+            .controls {
+                flex: 1;
+                min-width: 200px;
+                max-width: 100%;
+            }
+
+            .tower-btn {
+                padding: 8px;
+                font-size: 0.8em;
+            }
+
+            .tower-info {
+                font-size: 0.7em;
+            }
+
+            .wave-btn {
+                font-size: 0.9em;
+                padding: 10px;
+            }
+
+            .controls button {
+                padding: 6px;
+                font-size: 0.8em;
+            }
+
+            .message-overlay {
+                padding: 20px;
+            }
+
+            .message-overlay h2 {
+                font-size: 2em;
+            }
+
+            .restart-btn {
+                font-size: 1em;
+                padding: 8px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.2em;
+                margin: 5px 0;
+            }
+
+            .game-container {
+                gap: 10px;
+                padding: 5px;
+            }
+
+            .ui-panel {
+                flex-direction: column;
+                max-height: 50vh;
+            }
+
+            .stats-panel,
+            .tower-selection,
+            .wave-control {
+                min-width: 100%;
+                padding: 10px;
+            }
+
+            .tower-btn {
+                padding: 10px;
+                font-size: 0.75em;
+            }
+
+            .tower-info {
+                display: block;
+            }
+
+            .wave-btn {
+                font-size: 0.85em;
+            }
+
+            .controls button {
+                font-size: 0.75em;
+            }
+
+            .message-overlay {
+                padding: 15px;
+                width: 90%;
+            }
+
+            .message-overlay h2 {
+                font-size: 1.5em;
+            }
+
+            .restart-btn {
+                font-size: 0.9em;
+                padding: 6px 15px;
+            }
+
+            canvas {
+                width: 100vw !important;
+                height: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Simple LLM Defense</h1>
+    
+    <div class="game-container">
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="messageOverlay" class="message-overlay">
+                <h2 id="gameMessage">GAME OVER</h2>
+                <p id="finalScore" style="margin-bottom: 20px; color: #fff; font-size: 1.5em;"></p>
+                <button class="restart-btn" onclick="game.restart()">다시 시작</button>
+            </div>
+        </div>
+
+        <div class="ui-panel">
+            <div class="stats-panel">
+                <div class="stat-row">
+                    <span>💰 돈:</span>
+                    <span id="moneyDisplay" class="stat-value">100</span>
+                </div>
+                <div class="stat-row">
+                    <span>❤️ 생명:</span>
+                    <span id="livesDisplay" class="stat-value">20</span>
+                </div>
+                <div class="stat-row">
+                    <span>🌊 웨이브:</span>
+                    <span id="waveDisplay" class="stat-value">1</span>
+                </div>
+                <div class="stat-row">
+                    <span>👾 적:</span>
+                    <span id="enemiesDisplay" class="stat-value">0</span>
+                </div>
+            </div>
+
+            <div class="tower-selection">
+                <h3>🛡️ 방어기 선택</h3>
+                <button class="tower-btn selected" onclick="game.selectTower('firewall')">
+                    🔥 파이어월
+                    <span class="tower-info">$50 | 중갑 | 일반 사거리</span>
+                </button>
+                <button class="tower-btn" onclick="game.selectTower('router')">
+                    📡 라우터
+                    <span class="tower-info">$100 | 고속사격 | 중사거리</span>
+                </button>
+                <button class="tower-btn" onclick="game.selectTower('compiler')">
+                    🧪 컴파일러
+                    <span class="tower-info">$150 | 고데미지 | 원거리</span>
+                </button>
+            </div>
+
+            <div class="wave-control">
+                <h3>🌊 웨이브 제어</h3>
+                <button id="waveBtn" class="wave-btn" onclick="game.startNextWave()">웨이브 시작</button>
+                <div class="controls" style="margin-top: 10px;">
+                    <button onclick="game.pauseGame()">일시정지</button>
+                    <button onclick="game.resumeGame()">재개</button>
+                </div>
+            </div>
+
+            <div style="background: #1a1a24; padding: 10px; border: 2px solid #00ff88; border-radius: 8px; font-size: 0.8em;">
+                <strong>📜 커맨드:</strong><br>
+                1. 방어기 선택 후 클릭<br>
+                2. 웨이브 버튼으로 시작<br>
+                3. 적을 모두 물리쳐라!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.originalWidth = 800;
+                this.originalHeight = 600;
+                this.resizeCanvas();
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                
+                this.money = 100;
+                this.lives = 20;
+                this.wave = 1;
+                this.isGameOver = false;
+                this.isPaused = false;
+                
+                this.towers = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.particles = [];
+                this.path = [];
+                
+                this.currentTower = 'firewall';
+                this.selectedTower = null;
+                this.placementMode = false;
+                
+                this.waveActive = false;
+                this.enemiesToSpawn = 0;
+                this.spawnTimer = 0;
+                this.spawnInterval = 60;
+                
+                this.initPath();
+                this.setupInput();
+                this.updateUI();
+                
+                this.gameLoop = this.gameLoop.bind(this);
+                
+                this.resizeCanvas();
+                window.addEventListener('resize', () => {
+                    this.resizeCanvas();
+                    this.width = this.canvas.width;
+                    this.height = this.canvas.height;
+                });
+                
+                requestAnimationFrame(this.gameLoop);
+            }
+
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                const maxWidth = Math.min(window.innerWidth - 20, 800);
+                const maxHeight = window.innerHeight - 200;
+                
+                const scale = Math.min(maxWidth / this.originalWidth, maxHeight / this.originalHeight);
+                
+                const newWidth = Math.floor(this.originalWidth * scale);
+                const newHeight = Math.floor(this.originalHeight * scale);
+                
+                this.canvas.style.width = `${newWidth}px`;
+                this.canvas.style.height = `${newHeight}px`;
+                this.canvas.width = this.originalWidth;
+                this.canvas.height = this.originalHeight;
+                
+                this.canvas.style.maxWidth = '100%';
+                this.canvas.style.maxHeight = '600px';
+            }
+
+            initPath() {
+                this.path = [
+                    {x: 0, y: 100},
+                    {x: 200, y: 100},
+                    {x: 200, y: 400},
+                    {x: 400, y: 400},
+                    {x: 400, y: 200},
+                    {x: 600, y: 200},
+                    {x: 600, y: 500},
+                    {x: 800, y: 500}
+                ];
+            }
+
+            setupInput() {
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handleTouchStart(e);
+                }, {passive: false});
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.handleTouchMove(e);
+                }, {passive: false});
+                
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.handleTouchEnd(e);
+                }, {passive: false});
+            }
+
+            handleClick(e) {
+                if (this.isGameOver || this.isPaused) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (this.placementMode && this.selectedTower) {
+                    this.placeTower(x, y);
+                    this.placementMode = false;
+                    this.selectedTower = null;
+                    this.updateTowerButtons();
+                }
+            }
+
+            handleMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.mouseX = e.clientX - rect.left;
+                this.mouseY = e.clientY - rect.top;
+            }
+
+            handleTouchStart(e) {
+                if (this.isGameOver || this.isPaused) return;
+                this.touchX = e.touches[0].clientX;
+                this.touchY = e.touches[0].clientY;
+            }
+
+            handleTouchMove(e) {
+                if (this.isGameOver || this.isPaused) return;
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                this.touchX = e.touches[0].clientX - rect.left;
+                this.touchY = e.touches[0].clientY - rect.top;
+                this.mouseX = this.touchX;
+                this.mouseY = this.touchY;
+                
+                if (this.selectedTower) {
+                    this.updateTowerButtons();
+                }
+            }
+
+            handleTouchEnd(e) {
+                if (this.isGameOver || this.isPaused) return;
+                
+                if (this.placementMode && this.selectedTower) {
+                    this.placeTower(this.touchX, this.touchY);
+                    this.placementMode = false;
+                    this.selectedTower = null;
+                    this.updateTowerButtons();
+                }
+            }
+
+            selectTower(type) {
+                this.currentTower = type;
+                this.selectTowerUI(type);
+            }
+
+            selectTowerUI(type) {
+                document.querySelectorAll('.tower-btn').forEach(btn => btn.classList.remove('selected'));
+                const buttons = {
+                    'firewall': 0,
+                    'router': 1,
+                    'compiler': 2
+                };
+                document.querySelectorAll('.tower-btn')[buttons[type]].classList.add('selected');
+            }
+
+            updateTowerButtons() {
+                if (this.selectedTower) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = this.mouseX;
+                    const y = this.mouseY;
+                    this.ctx.beginPath();
+                    const range = this.getTowerRange(this.selectedTower);
+                    this.ctx.arc(x, y, range, 0, Math.PI * 2);
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.ctx.fill();
+                    
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 15, 0, Math.PI * 2);
+                    this.ctx.fillStyle = this.getTowerColor(this.selectedTower);
+                    this.ctx.fill();
+                }
+            }
+
+            placeTower(x, y) {
+                if (this.money < this.getTowerCost(this.currentTower)) return;
+                
+                for (const pathPoint of this.path) {
+                    const dist = Math.hypot(x - pathPoint.x, y - pathPoint.y);
+                    if (dist < 40) return;
+                }
+                
+                for (const tower of this.towers) {
+                    const dist = Math.hypot(x - tower.x, y - tower.y);
+                    if (dist < 50) return;
+                }
+                
+                this.money -= this.getTowerCost(this.currentTower);
+                this.towers.push({
+                    x: x,
+                    y: y,
+                    type: this.currentTower,
+                    range: this.getTowerRange(this.currentTower),
+                    damage: this.getTowerDamage(this.currentTower),
+                    fireRate: this.getFireRate(this.currentTower),
+                    lastShot: 0
+                });
+                this.updateUI();
+            }
+
+            getTowerCost(type) {
+                return {firewall: 50, router: 100, compiler: 150}[type];
+            }
+
+            getTowerRange(type) {
+                return {firewall: 120, router: 100, compiler: 180}[type];
+            }
+
+            getTowerDamage(type) {
+                return {firewall: 10, router: 5, compiler: 30}[type];
+            }
+
+            getFireRate(type) {
+                return {firewall: 60, router: 20, compiler: 90}[type];
+            }
+
+            getTowerColor(type) {
+                return {firewall: '#ff5555', router: '#5555ff', compiler: '#ff55ff'}[type];
+            }
+
+            startNextWave() {
+                if (this.waveActive) return;
+                this.waveActive = true;
+                this.enemiesToSpawn = 5 + Math.floor(this.wave * 2.5);
+                this.spawnInterval = Math.max(20, 60 - this.wave * 3);
+                document.getElementById('waveBtn').disabled = true;
+            }
+
+            spawnEnemy() {
+                if (this.enemiesToSpawn <= 0) return;
+                
+                const types = ['bug', 'virus', 'malware', 'trojan'];
+                const type = types[Math.min(Math.floor((this.wave - 1) / 2), 3)];
+                
+                this.enemies.push({
+                    x: this.path[0].x,
+                    y: this.path[0].y,
+                    pathIndex: 0,
+                    type: type,
+                    hp: this.getEnemyHP(type),
+                    maxHp: this.getEnemyHP(type),
+                    speed: this.getEnemySpeed(type),
+                    reward: this.getEnemyReward(type),
+                    radius: this.getEnemyRadius(type)
+                });
+                
+                this.enemiesToSpawn--;
+            }
+
+            getEnemyHP(type) {
+                const baseHP = {bug: 20, virus: 40, malware: 80, trojan: 30}[type];
+                return Math.floor(baseHP * Math.pow(1.2, this.wave - 1));
+            }
+
+            getEnemySpeed(type) {
+                return {bug: 2, virus: 1, malware: 0.5, trojan: 2.5}[type];
+            }
+
+            getEnemyReward(type) {
+                return {bug: 10, virus: 15, malware: 25, trojan: 20}[type];
+            }
+
+            getEnemyRadius(type) {
+                return {bug: 10, virus: 12, malware: 15, trojan: 11}[type];
+            }
+
+            update() {
+                if (this.isGameOver || this.isPaused) return;
+                
+                if (this.waveActive) {
+                    this.spawnTimer++;
+                    if (this.spawnTimer >= this.spawnInterval) {
+                        this.spawnEnemy();
+                        this.spawnTimer = 0;
+                    }
+                    
+                    if (this.enemiesToSpawn === 0 && this.enemies.length === 0) {
+                        this.waveActive = false;
+                        this.wave++;
+                        document.getElementById('waveBtn').disabled = false;
+                        this.updateUI();
+                    }
+                }
+                
+                for (const enemy of this.enemies) {
+                    const target = this.path[enemy.pathIndex + 1];
+                    if (!target) {
+                        this.lives--;
+                        enemy.dead = true;
+                        this.createExplosion(enemy.x, enemy.y, '#ff0000');
+                        continue;
+                    }
+                    
+                    const dx = target.x - enemy.x;
+                    const dy = target.y - enemy.y;
+                    const dist = Math.hypot(dx, dy);
+                    
+                    if (dist < enemy.speed) {
+                        enemy.x = target.x;
+                        enemy.y = target.y;
+                        enemy.pathIndex++;
+                    } else {
+                        enemy.x += (dx / dist) * enemy.speed;
+                        enemy.y += (dy / dist) * enemy.speed;
+                    }
+                }
+                
+                this.enemies = this.enemies.filter(e => !e.dead);
+                
+                for (const tower of this.towers) {
+                    tower.lastShot++;
+                    if (tower.lastShot >= tower.fireRate) {
+                        const target = this.findTarget(tower);
+                        if (target) {
+                            this.projectiles.push({
+                                x: tower.x,
+                                y: tower.y,
+                                target: target,
+                                damage: tower.damage,
+                                speed: 8,
+                                type: tower.type
+                            });
+                            tower.lastShot = 0;
+                        }
+                    }
+                }
+                
+                for (const projectile of this.projectiles) {
+                    if (projectile.target.dead) continue;
+                    
+                    const dx = projectile.target.x - projectile.x;
+                    const dy = projectile.target.y - projectile.y;
+                    const dist = Math.hypot(dx, dy);
+                    
+                    if (dist < projectile.speed) {
+                        projectile.target.hp -= projectile.damage;
+                        this.createExplosion(projectile.x, projectile.y, '#ffff00');
+                        
+                        if (projectile.target.hp <= 0 && !projectile.target.dead) {
+                            projectile.target.dead = true;
+                            this.money += projectile.target.reward;
+                            this.createExplosion(projectile.target.x, projectile.target.y, '#00ff88');
+                        }
+                    } else {
+                        projectile.x += (dx / dist) * projectile.speed;
+                        projectile.y += (dy / dist) * projectile.speed;
+                    }
+                }
+                
+                this.projectiles = this.projectiles.filter(p => {
+                    if (p.target.dead) return false;
+                    return Math.hypot(p.target.x - p.x, p.target.y - p.y) < 2000;
+                });
+                
+                for (const particle of this.particles) {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.life--;
+                }
+                
+                this.particles = this.particles.filter(p => p.life > 0);
+                
+                if (this.lives <= 0) {
+                    this.gameOver(false);
+                }
+                
+                if (this.wave === 10 && this.enemiesToSpawn === 0 && this.enemies.length === 0) {
+                    this.gameOver(true);
+                }
+                
+                this.updateUI();
+            }
+
+            findTarget(tower) {
+                let bestTarget = null;
+                let maxPriority = -1;
+                
+                for (const enemy of this.enemies) {
+                    const dist = Math.hypot(tower.x - enemy.x, tower.y - enemy.y);
+                    if (dist <= tower.range) {
+                        const priority = enemy.pathIndex * 100 + (100 - dist);
+                        if (priority > maxPriority) {
+                            maxPriority = priority;
+                            bestTarget = enemy;
+                        }
+                    }
+                }
+                
+                return bestTarget;
+            }
+
+            createExplosion(x, y, color) {
+                for (let i = 0; i < 8; i++) {
+                    this.particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 5,
+                        vy: (Math.random() - 0.5) * 5,
+                        life: 20,
+                        color: color
+                    });
+                }
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#0d0d16';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                
+                this.ctx.strokeStyle = '#00ff88';
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.path[0].x, this.path[0].y);
+                for (let i = 1; i < this.path.length; i++) {
+                    this.ctx.lineTo(this.path[i].x, this.path[i].y);
+                }
+                this.ctx.stroke();
+                
+                for (const tower of this.towers) {
+                    this.drawTower(tower);
+                }
+                
+                for (const enemy of this.enemies) {
+                    this.drawEnemy(enemy);
+                }
+                
+                for (const projectile of this.projectiles) {
+                    this.ctx.fillStyle = '#ffff00';
+                    this.ctx.beginPath();
+                    this.ctx.arc(projectile.x, projectile.y, 4, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                for (const particle of this.particles) {
+                    this.ctx.fillStyle = particle.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                if (this.selectedTower) {
+                    this.updateTowerButtons();
+                }
+            }
+
+            drawTower(tower) {
+                this.ctx.fillStyle = this.getTowerColor(tower.type);
+                this.ctx.fillRect(tower.x - 15, tower.y - 15, 30, 30);
+                
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(tower.x - 15, tower.y - 15, 30, 30);
+                
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = '10px Courier New';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(tower.type[0].toUpperCase(), tower.x, tower.y);
+            }
+
+            drawEnemy(enemy) {
+                this.ctx.fillStyle = this.getEnemyColor(enemy.type);
+                this.ctx.beginPath();
+                this.ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                const hpPercent = enemy.hp / enemy.maxHp;
+                this.ctx.fillStyle = '#ff0000';
+                this.ctx.fillRect(enemy.x - 10, enemy.y - enemy.radius - 8, 20, 4);
+                this.ctx.fillStyle = '#00ff88';
+                this.ctx.fillRect(enemy.x - 10, enemy.y - enemy.radius - 8, 20 * hpPercent, 4);
+            }
+
+            getEnemyColor(type) {
+                return {bug: '#ff5555', virus: '#5555ff', malware: '#ff00ff', trojan: '#00ffff'}[type];
+            }
+
+            updateUI() {
+                document.getElementById('moneyDisplay').textContent = this.money;
+                document.getElementById('livesDisplay').textContent = this.lives;
+                document.getElementById('waveDisplay').textContent = this.wave;
+                document.getElementById('enemiesDisplay').textContent = this.enemies.length;
+            }
+
+            pauseGame() {
+                this.isPaused = true;
+            }
+
+            resumeGame() {
+                this.isPaused = false;
+            }
+
+            gameOver(win) {
+                this.isGameOver = true;
+                const overlay = document.getElementById('messageOverlay');
+                const message = document.getElementById('gameMessage');
+                const score = document.getElementById('finalScore');
+                
+                overlay.style.display = 'block';
+                message.textContent = win ? '🎉 VICTORY! 🎉' : '💀 GAME OVER 💀';
+                message.style.color = win ? '#00ff88' : '#ff0055';
+                score.textContent = `웨이브: ${this.wave - 1} / finalScore = this.wave - 1;
+            }
+
+            restart() {
+                this.money = 100;
+                this.lives = 20;
+                this.wave = 1;
+                this.isGameOver = false;
+                this.isPaused = false;
+                this.towers = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.particles = [];
+                this.waveActive = false;
+                document.getElementById('waveBtn').disabled = false;
+                document.getElementById('messageOverlay').style.display = 'none';
+                this.updateUI();
+            }
+
+            gameLoop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(this.gameLoop);
+            }
+        }
+
+        const game = new Game();
+    </script>
+</body>
+</html>
