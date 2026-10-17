@@ -1,0 +1,54 @@
+*{box-sizing:border-box}
+html,body{margin:0;background:#0b1220;color:#dfe9f5;font-family:'Segoe UI',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+body{overscroll-behavior:none}
+#hud{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 14px;background:#101a2c;border-bottom:1px solid #223249}
+#hud h1{font-size:15px;margin:0;letter-spacing:2px;color:#8fd3ff}
+.stat{font-size:13px;background:#16233a;padding:5px 9px;border-radius:6px}
+.stat b{color:#fff;font-size:15px}
+.gold b{color:#ffd479}.core b{color:#ff7b8a}
+button{background:#1d3050;color:#cfe4ff;border:1px solid #2f4a72;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:13px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:hover{background:#274066}
+button:active{background:#31507e}
+button:disabled{opacity:.4;cursor:not-allowed}
+main{display:flex;gap:14px;padding:14px}
+#stage{position:relative;flex:1;min-width:0}
+canvas{background:#0e1a2b;border:1px solid #223249;border-radius:8px;display:block;width:100%;max-width:800px;height:auto;aspect-ratio:800/480;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#overlay{position:absolute;inset:0;background:rgba(6,12,22,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border-radius:8px}
+#overlayTitle{font-size:30px;letter-spacing:3px}
+#overlayText{color:#9fb6d4;text-align:center;padding:0 16px}
+.hidden{display:none!important}
+#panel{width:250px;display:flex;flex-direction:column;gap:8px}
+#panel h2{font-size:12px;margin:6px 0 0;color:#7f9ec2;letter-spacing:2px;text-transform:uppercase}
+.shopCard{display:flex;align-items:center;gap:8px;background:#13203a;border:1px solid #24374f;border-radius:8px;padding:11px 10px;cursor:pointer;font-size:13px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
+.shopCard:hover{border-color:#3c6ea5}
+.shopCard.active{border-color:#5fb0ff;background:#182a48}
+.shopCard b{flex:1}
+.shopCard em{font-style:normal;color:#7f9ec2;font-size:11px}
+.shopCard i{font-style:normal;color:#ffd479}
+.shopCard .k{background:#22334d;border-radius:4px;padding:2px 6px;font-size:11px;color:#8fd3ff}
+#selInfo{background:#13203a;border:1px solid #24374f;border-radius:8px;padding:10px;font-size:12.5px;min-height:74px;line-height:1.5}
+#selActions{display:flex;gap:8px}
+#selActions button{flex:1}
+#log{background:#13203a;border:1px solid #24374f;border-radius:8px;padding:8px;font-size:11.5px;height:120px;overflow:auto;color:#9fb6d4}
+footer{padding:8px 16px;color:#6b83a3;font-size:12px;line-height:1.6}
+.touchHint{display:none;color:#8fb6e0}
+
+@media (max-width:760px){
+  #hud{gap:6px;padding:8px 10px}
+  #hud h1{font-size:13px;letter-spacing:1px;width:100%}
+  .stat{font-size:12px;padding:4px 8px}.stat b{font-size:13px}
+  main{flex-direction:column;gap:10px;padding:10px}
+  #stage{width:100%}
+  canvas{border-radius:6px}
+  #panel{width:100%;flex-direction:row;flex-wrap:wrap;align-items:stretch}
+  #panel h2{width:100%;margin:2px 0 0}
+  .shopCard{flex:1 1 30%;padding:12px 8px;font-size:12px;min-height:44px}
+  .shopCard em{display:none}
+  #selInfo{flex:1 1 100%;min-height:56px}
+  #selActions{flex:1 1 100%}
+  #selActions button{min-height:44px;font-size:14px}
+  #log{flex:1 1 100%;height:88px}
+  #startBtn,#speedBtn{min-height:40px;flex:1 1 auto}
+  .touchHint{display:inline}
+  footer{font-size:11px}
+}

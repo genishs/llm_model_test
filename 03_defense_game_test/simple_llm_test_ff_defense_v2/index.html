@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Frostline Defense</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="hud">
+  <h1>FROSTLINE DEFENSE</h1>
+  <div class="stat">Wave <b id="wave">0</b>/25</div>
+  <div class="stat gold">Gold <b id="gold">220</b></div>
+  <div class="stat core">Core <b id="hp">20</b></div>
+  <button id="speedBtn">Speed x1</button>
+  <button id="startBtn">Start Wave</button>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="game" width="800" height="480"></canvas>
+    <div id="overlay" class="hidden">
+      <div id="overlayTitle"></div>
+      <div id="overlayText"></div>
+      <button id="restartBtn">Restart</button>
+    </div>
+  </div>
+  <aside id="panel">
+    <h2>Build</h2>
+    <div class="shopCard" data-t="frost"><span class="k">1</span><b>Frost Coil</b><em>slow + dmg</em><i>60g</i></div>
+    <div class="shopCard" data-t="arc"><span class="k">2</span><b>Arc Node</b><em>pierce x3</em><i>95g</i></div>
+    <div class="shopCard" data-t="ember"><span class="k">3</span><b>Ember Mortar</b><em>splash AoE</em><i>130g</i></div>
+    <h2>Selection</h2>
+    <div id="selInfo">빈 셀을 클릭해 타워를 설치하거나, 기존 타워를 클릭하세요.</div>
+    <div id="selActions" class="hidden">
+      <button id="upBtn">Upgrade (U)</button>
+      <button id="sellBtn">Sell (S)</button>
+    </div>
+    <h2>Log</h2>
+    <div id="log"></div>
+  </aside>
+</main>
+<footer>1/2/3 tower · click grid · U upgrade · S sell · Space next wave · Esc deselect<br><span class="touchHint">모바일: 카드 탭 = 타워 선택 · 칸 탭 = 설치/선택 · Upgrade/Sell 버튼 · Start Wave</span></footer>
+<script src="game.js"></script>
+</body>
+</html>

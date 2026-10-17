@@ -63,3 +63,4 @@
 - 테트리스 종합: v1 445 → v2 343 → v3 60, 평균 282.7 (종합 11위) — [종합 보기](../01_tetris_game_test/README.md#10-테트리스-종합--v1--v2--v3-완결)
 - [02 드래곤플라이트 게임 테스트](../02_dragonflight_game_test/README.md#9-결과--v1) — v1: 10위 / 총점 444 — 첫 프레임에서 const 재대입 예외로 루프가 죽어 실행 불가 · [v2](../02_dragonflight_game_test/README.md#9-2-결과--v2): 11위 / 총점 415 — v1 부터 실행 불가, viewport 메타가 없고 R3 로 실측 0 · [v3](../02_dragonflight_game_test/README.md#9-3-결과--v3): 공동 10위 / 총점 337 — v1 부터의 const 재대입 예외로 실행 불가, 코인 투입 수단 없음
 - 드래곤플라이트 종합: v1 444 → v2 415 → v3 337, 평균 398.7 (종합 11위) — [종합 보기](../02_dragonflight_game_test/README.md#10-드래곤플라이트-종합--v1--v2--v3-완결)
+- [03 디펜스 게임 테스트](../03_defense_game_test/README.md#9-결과--v1) — v1: 11위 / 총점 207 — 세로 슈팅형 디펜스 — 시작 입력이 없어 시작 화면에서 진행 불가(실행 불가 처리) (v2·v3 결과는 라운드 종료 후)
