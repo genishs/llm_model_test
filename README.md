@@ -5,7 +5,7 @@
 ## 시험 목록
 - [01 테트리스](./01_tetris_game_test/) — v1 만들기, v2 터치 조작, v3 레벨·크레딧·컨티뉴
 - [02 드래곤플라이트](./02_dragonflight_game_test/) — v1 만들기, v2 터치 조작, v3 스테이지·크레딧·컨티뉴
-- 03 디펜스(준비 중) — v1 만들기(장르·기획·디자인은 모델에 맡김), v2 터치 조작, v3 4스테이지마다 보스전
+- [03 디펜스](./03_defense_game_test/)(준비 중) — v1 만들기(장르·기획·디자인은 모델에 맡김), v2 터치 조작, v3 4스테이지마다 보스전
 
 각 테스트 페이지에 라운드별 결과 게임 카드(점수·플레이·코드 링크)와 README(지시문 원문, 채점 방법, 결과 분석)가 있다. 참가 모델 15종의 제원은 [모델 정보](https://github.com/genishs/llm_model_test/tree/main/00_model_info) 에 있다.
 
@@ -40,7 +40,7 @@
 ### 시험별 과제
 - **01 테트리스** — v1: 아타리(Atari Games) 1988년 아케이드판 테트리스의 게임성과 그래픽을 최대한 가깝게 재현 → v2: 모바일 터치 조작 추가 → v3: 레벨·크레딧·컨티뉴 도입. 지시문 원문은 [01 README 3절](./01_tetris_game_test/#s3).
 - **02 드래곤플라이트** — v1: 모바일 게임 「드래곤플라이트」의 게임성을 참고한 세로 스크롤 슈팅(원작의 그림·소리·이름은 복사하지 말고 직접 그리기, 서브에이전트 사용 허용) → v2: 터치 조작 추가(손가락을 끌어 좌우 이동) → v3: 스테이지·크레딧·컨티뉴 도입. 지시문 원문은 [02 README 3절](./02_dragonflight_game_test/#s3).
-- **03 디펜스(준비 중)** — v1: 어떤 디펜스 게임으로 만들지(장르 해석·규칙·세계관·화면 구성·조작 방식)와 기획·디자인을 어떻게 진행할지를 모델에 맡김. 인터넷 검색, 외부 라이브러리·이미지·소리(출처·라이선스를 README.md 에 적기), 페르소나·서브에이전트 사용을 허용하고 **라운드당 15분** 안에 끝낸다. 시작·마감 시각을 알려 주며, 마감이 되면 작업을 강제로 끝내고 그 순간의 결과물로 평가한다 → v2: 모바일 터치 조작 추가 → v3: 스테이지 4개마다 보스전(예: 4·8·12 스테이지). 보스는 일반 적과 다른 체력과 행동 패턴을 갖고, 현재 스테이지와 보스전 여부를 화면에 표시한다. 03 테스트 페이지가 생기면 지시문 원문도 같은 3절에 실린다.
+- **03 디펜스(준비 중)** — v1: 어떤 디펜스 게임으로 만들지(장르 해석·규칙·세계관·화면 구성·조작 방식)와 기획·디자인을 어떻게 진행할지를 모델에 맡김. 인터넷 검색, 외부 라이브러리·이미지·소리(출처·라이선스를 README.md 에 적기), 페르소나·서브에이전트 사용을 허용하고 **라운드당 15분** 안에 끝낸다. 시작·마감 시각을 알려 주며, 마감이 되면 작업을 강제로 끝내고 그 순간의 결과물로 평가한다 → v2: 모바일 터치 조작 추가 → v3: 스테이지 4개마다 보스전(예: 4·8·12 스테이지). 보스는 일반 적과 다른 체력과 행동 패턴을 갖고, 현재 스테이지와 보스전 여부를 화면에 표시한다. 지시문 원문은 [03 README 3절](./03_defense_game_test/#s3).
 
 ## 평가 (1000점)
 라운드마다 채점 기준이 다르다(v1 기본 게임 / v2 터치 조작 / v3 아케이드 기능). 모든 라운드가 1000점 만점이고, 루브릭과 채점 방법은 각 테스트 README 7절에 있다.
@@ -113,6 +113,7 @@
 - [simple_llm_test_ff_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_ff_dragonflight_v1/index.html)
 - [simple_llm_test_fn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_fn_dragonflight_v1/index.html)
 - [simple_llm_test_lfm_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_lfm_dragonflight_v1/index.html)
+- [simple_llm_test_lfm_dragonflight_v2](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_lfm_dragonflight_v2/index.html)
 - [simple_llm_test_mcv_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mcv_dragonflight_v1/index.html)
 - [simple_llm_test_mel_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mel_dragonflight_v1/index.html)
 - [simple_llm_test_mg_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_mg_dragonflight_v1/index.html)

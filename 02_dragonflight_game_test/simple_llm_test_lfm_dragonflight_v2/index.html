@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Dragonflight</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+  canvas { display: block; width: 100%; height: auto; }
+  #ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    font-size: 18px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  <div>점수: <span id="score">0</span></div>
+  <div>거리: <span id="distance">0</span></div>
+  <div>코인: <span id="coins">0</span></div>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+let gameState = 'start'; // start, playing, over
+let score = 0;
+let distance = 0;
+let coins = 0;
+let level = 1;
+
+// Player
+const player = {
+  x: canvas.width / 2 - 20,
+  y: canvas.height - 50,
+  width: 40,
+  height: 30,
+  speed: 5,
+};
+
+let bullets = [];
+let enemies = [];
+let coinsArr = [];
+let items = [];
+let meteor = null;
+let waveEnemies = [];
+let currentWave = 0;
+
+// Attack power and shield timers
+let attackPower = 1;
+let shieldTimer = 0;
+
+function startNextWave() {
+  currentWave++;
+  waveEnemies = [];
+  const rowY = 100 + (currentWave - 1) * 80;
+  // Normal enemies
+  for (let i = 0; i < 5; i++) {
+    const x = 50 + i * 60;
+    const enemy = {
+      x: x,
+      y: rowY - 20,
+      width: 30,
+      height: 30,
+      health: 2,
+      maxHealth: 2,
+      speed: 1 + level * 0.3,
+      type: 'normal',
+    };
+    enemies.push(enemy);
+    waveEnemies.push(enemy);
+  }
+  // Boss every 3 waves
+  if (currentWave % 3 === 0) {
+    const boss = {
+      x: canvas.width / 2 - 40,
+      y: rowY - 30,
+      width: 80,
+      height: 60,
+      health: 5 + (level - 1) * 2,
+      maxHealth: 5 + (level - 1) * 2,
+      speed: 0.8 + level * 0.1,
+      type: 'boss',
+    };
+    enemies.push(boss);
+    waveEnemies.push(boss);
+  }
+}
+
+function rectCollide(a, b) {
+  return a.x < b.x + b.width &&
+         a.x + a.width > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+
+// Input
+const keys = { left: false, right: false };
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+});
+
+let touchStartX = null;
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  player.x = mouseX - player.width / 2;
+  if (player.x < 0) player.x = 0;
+  if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+});
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  if (gameState === 'start') {
+    gameState = 'playing';
+    score = 0;
+    distance = 0;
+    coins = 0;
+    level = 1;
+    player.x = canvas.width / 2 - 20;
+    bullets = [];
+    enemies = [];
+    coinsArr = [];
+    items = [];
+    meteor = null;
+    waveEnemies = [];
+    attackPower = 1;
+    shieldTimer = 0;
+    startNextWave();
+  } else if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX;
+  }
+});
+
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (touchStartX !== null && e.touches.length === 1) {
+    const deltaX = e.touches[0].clientX - touchStartX;
+    player.x += deltaX * 0.3;
+    if (player.x < 0) player.x = 0;
+    if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+  }
+});
+
+canvas.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  touchStartX = null;
+});
+
+canvas.addEventListener('click', () => {
+  if (gameState === 'start') {
+    gameState = 'playing';
+    score = 0;
+    distance = 0;
+    coins = 0;
+    level = 1;
+    player.x = canvas.width / 2 - 20;
+    bullets = [];
+    enemies = [];
+    coinsArr = [];
+    items = [];
+    meteor = null;
+    waveEnemies = [];
+    attackPower = 1;
+    shieldTimer = 0;
+    startNextWave();
+  }
+});
+
+// Coin spawn effect
+function spawnCoin(x, y) {
+  coinsArr.push({ x: x, y: y, radius: 8, life: 1 });
+}
+
+// Item spawn
+function spawnItem(type) {
+  const x = player.x + player.width / 2;
+  let y;
+  if (type === 'attack') y = player.y - 20;
+  else if (type === 'magnet') y = player.y - 40;
+  else if (type === 'shield') y = player.y - 60;
+  items.push({ x: x, y: y, type: type, radius: 12, speed: 1.5 });
+}
+
+function gameOver() {
+  gameState = 'over';
+  const ui = document.getElementById('ui');
+  ui.innerHTML = `<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);color:#fff;text-align:center;flex-direction:column;justify-content:center;align-items:center;">
+    <h1 style="font-size:32px;margin-bottom:10px;">게임 오버</h1>
+    <p>최종 점수: ${score}</p>
+    <p>거리: ${Math.floor(distance)}m</p>
+    <p>코인: ${coins}</p>
+    <button id="restartBtn" style="padding:10px 20px;margin-top:10px;background:#00ff00;color:#000;border:none;font-size:18px;">다시 시작</button>
+  </div>`;
+  document.getElementById('restartBtn').addEventListener('click', restartGame);
+}
+
+function restartGame() {
+  gameState = 'start';
+  score = 0;
+  distance = 0;
+  coins = 0;
+  level = 1;
+  player.x = canvas.width / 2 - 20;
+  bullets = [];
+  enemies = [];
+  coinsArr = [];
+  items = [];
+  meteor = null;
+  waveEnemies = [];
+  attackPower = 1;
+  shieldTimer = 0;
+  document.getElementById('ui').innerHTML = `<div>점수: <span id="score">0</span></div><div>거리: <span id="distance">0</span></div><div>코인: <span id="coins">0</span></div>`;
+  startNextWave();
+}
+
+function update(dt) {
+  if (gameState !== 'playing') return;
+
+  // Player movement
+  if (keys.left) player.x -= player.speed * dt;
+  if (keys.right) player.x += player.speed * dt;
+  if (player.x < 0) player.x = 0;
+  if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
+
+  // Bullets
+  bullets.forEach(b => b.y -= 8 * dt);
+  bullets = bullets.filter(b => b.y > 0);
+
+  // Enemies
+  enemies.forEach(e => e.y += e.speed * dt);
+
+  // Collision: player vs enemies
+  for (let i = waveEnemies.length - 1; i >= 0; i--) {
+    const e = waveEnemies[i];
+    if (rectCollide(player, e)) {
+      gameOver();
+      return;
+    }
+  }
+
+  // Coin collection
+  coinsArr.forEach(c => {
+    if (rectCollide(player, c)) {
+      c.y = -10;
+      coins++;
+      score += 50;
+      spawnCoin(player.x + player.width / 2, player.y - 30);
+    }
+  });
+
+  // Item collection
+  items.forEach(item => {
+    if (rectCollide(player, item)) {
+      item.y = -10;
+      if (item.type === 'attack') attackPower = Math.min(attackPower + 1, 5);
+      else if (item.type === 'magnet') shieldTimer = 300; // seconds
+      else if (item.type === 'shield') shieldTimer = 300;
+    }
+  });
+
+  // Shield timer
+  if (shieldTimer > 0) shieldTimer -= dt;
+
+  // Meteor spawn chance
+  if (Math.random() < 0.0005) {
+    meteor = { x: Math.random() * canvas.width, y: -30, width: 40, height: 20, speed: 2 + level * 0.2 };
+  }
+  if (meteor) {
+    meteor.y += meteor.speed * dt;
+    if (meteor.y > canvas.height + 30) meteor = null;
+  }
+
+  // Remove off-screen enemies
+  enemies = enemies.filter(e => e.y < canvas.height + 50);
+
+  // Wave completion
+  if (waveEnemies.length === 0) {
+    startNextWave();
+  }
+
+  // Update distance and score
+  distance += 0.1 * dt;
+  score = Math.floor(distance * 10) + coins * 50;
+
+  // UI update
+  document.getElementById('score').textContent = score;
+  document.getElementById('distance').textContent = Math.floor(distance);
+}
+
+function render() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Meteor warning
+  if (meteor) {
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(meteor.x - 2, meteor.y - 2, meteor.width + 4, meteor.height + 4);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('⚠️ 경고', meteor.x - 30, meteor.y - 10);
+  }
+
+  // Items
+  items.forEach(item => {
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+    ctx.fillStyle = item.type === 'attack' ? '#ff0000' : item.type === 'magnet' ? '#00ff00' : '#0000ff';
+    ctx.fill();
+  });
+
+  // Coins
+  coinsArr.forEach(c => {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffff00';
+    ctx.fill();
+  });
+
+  // Enemies
+  enemies.forEach(e => {
+    ctx.fillStyle = e.type === 'boss' ? '#ff4444' : '#ff0000';
+    ctx.beginPath();
+    ctx.moveTo(e.x + e.width / 2, e.y - e.height / 2);
+    ctx.lineTo(e.x, e.y + e.height / 2);
+    ctx.lineTo(e.x + e.width, e.y + e.height / 2);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // Bullets
+  bullets.forEach(b => {
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(b.x - 2, b.y - 4, 4, 8);
+  });
+
+  // Player
+  ctx.fillStyle = '#00ff00';
+  ctx.beginPath();
+  ctx.moveTo(player.x + player.width / 2, player.y - 15);
+  ctx.lineTo(player.x, player.y + 15);
+  ctx.lineTo(player.x + player.width, player.y + 15);
+  ctx.closePath();
+  ctx.fill();
+
+  // Attack power indicator
+  if (attackPower > 1) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = '12px Arial';
+    ctx.fillText('공격력: ' + attackPower, 10, 20);
+  }
+}
+
+function gameLoop(timestamp) {
+  const dt = (timestamp - (gameState === 'start' ? 0 : lastTime)) / 1000;
+  if (dt > 0.1) dt = 0.1;
+  update(dt);
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+lastTime = performance.now();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
