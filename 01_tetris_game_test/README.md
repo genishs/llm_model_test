@@ -4,6 +4,7 @@
 
 ## 바로 플레이
 
+- [simple_llm_test_aw_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_aw_tetris_v1/index.html)
 - [simple_llm_test_bolt_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_bolt_tetris_v1/index.html)
 - [simple_llm_test_cn_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_cn_tetris_v1/index.html)
 - [simple_llm_test_lfm_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_lfm_tetris_v1/index.html)
