@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Tetris - Atari 1988 Arcade Style</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <h1>TETRIS</h1>
+            <div id="score-board">
+                <div class="score-item">
+                    <span>SCORE</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="score-item">
+                    <span>LEVEL</span>
+                    <span id="level">1</span>
+                </div>
+                <div class="score-item">
+                    <span>LINES</span>
+                    <span id="lines">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="game-area">
+            <canvas id="game-canvas" width="240" height="480"></canvas>
+            <div id="next-piece">
+                <span>NEXT</span>
+                <canvas id="next-canvas" width="80" height="80"></canvas>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <h3>OPERATION</h3>
+            <p>← → : Move</p>
+            <p>↑ : Rotate</p>
+            <p>↓ : Soft Drop</p>
+            <p>SPACE : Hard Drop</p>
+            <p>P : Pause</p>
+            <p>ENTER : Start</p>
+        </div>
+        
+        <div id="overlay">
+            <div id="overlay-content">
+                <h2>TETRIS</h2>
+                <p>Press ENTER to Start</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
