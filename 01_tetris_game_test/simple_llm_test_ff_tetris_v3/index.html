@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atari Tetris (1988) - Web</title>
+<style>
+  :root{
+    --bg:#000;
+    --cabinet:#2b2b2b;
+    --bezel:#111;
+    --panel:#1a1a1a;
+    --line:#3a3a3a;
+    --text:#e8e8e8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Courier New",monospace;}
+  body{display:flex;align-items:center;justify-content:center;padding:16px;}
+  .cabinet{
+    background:linear-gradient(#3a3a3a,#202020);
+    border:4px solid #555;
+    border-radius:10px;
+    padding:14px;
+    box-shadow:0 0 40px rgba(0,0,0,.8), inset 0 0 30px rgba(0,0,0,.6);
+    max-width:100%;
+  }
+  .marquee{
+    text-align:center;
+    font-weight:bold;
+    letter-spacing:4px;
+    color:#ffd23f;
+    text-shadow:0 0 8px rgba(255,210,63,.5);
+    padding:6px 0 10px;
+    font-size:22px;
+  }
+  .marquee small{display:block;color:#c9c9c9;letter-spacing:2px;font-size:11px;margin-top:2px;}
+  .playarea{display:flex;gap:14px;align-items:flex-start;}
+  canvas{
+    background:#000;
+    border:3px solid #666;
+    image-rendering:pixelated;
+    box-shadow:inset 0 0 20px rgba(0,0,0,.9);
+    display:block;
+  }
+  .side{
+    display:flex;flex-direction:column;gap:10px;width:150px;
+  }
+  .panelbox{
+    background:var(--panel);
+    border:2px solid var(--line);
+    border-radius:6px;
+    padding:8px;
+  }
+  .label{font-size:11px;color:#9a9a9a;letter-spacing:2px;text-transform:uppercase;}
+  .big{font-size:26px;font-weight:bold;color:#fff;letter-spacing:2px;}
+  .nextwrap{display:flex;justify-content:center;}
+  #next{border:none;box-shadow:none;background:#050505;}
+  .keys{font-size:11px;line-height:1.7;color:#cfcfcf;}
+  .keys b{color:#ffd23f;}
+  .hint{text-align:center;font-size:11px;color:#8a8a8a;margin-top:10px;letter-spacing:1px;}
+
+  /* ---------- touch controls (mobile) ---------- */
+  .touchpad{
+    display:none;
+    margin-top:12px;
+    gap:10px;
+    justify-content:center;
+    align-items:stretch;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+    touch-action:none;
+  }
+  .tcluster{display:flex;flex-direction:column;gap:8px;align-items:center;}
+  .trow{display:flex;gap:8px;}
+  .tbtn{
+    width:56px;height:56px;
+    border-radius:12px;
+    border:2px solid #555;
+    background:linear-gradient(#3a3a3a,#222);
+    color:#ffd23f;
+    font-size:22px;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.6), inset 0 0 8px rgba(0,0,0,.5);
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .tbtn:active{background:linear-gradient(#4a4a4a,#2c2c2c);transform:translateY(1px);}
+  .tbtn.wide{width:120px;}
+  .tswipe-hint{font-size:10px;color:#8a8a8a;text-align:center;margin-top:6px;letter-spacing:1px;}
+
+  @media (max-width:640px){
+    body{padding:8px;}
+    .cabinet{padding:8px;border-radius:8px;}
+    .marquee{font-size:16px;letter-spacing:2px;padding:4px 0 8px;}
+    .playarea{flex-direction:column;align-items:center;gap:10px;}
+    canvas#board{max-width:calc(100vw - 32px);height:auto;}
+    .side{width:100%;flex-direction:row;flex-wrap:wrap;gap:8px;}
+    .panelbox{flex:1;min-width:90px;padding:6px;}
+    .big{font-size:18px;}
+    .label{font-size:9px;}
+    .keys{display:none;}
+    .touchpad{display:flex;}
+  }
+</style>
+</head>
+<body>
+  <div class="cabinet">
+    <div class="marquee">TETRIS<small>ATARI GAMES &copy; 1988 &middot; WEB RECREATION</small></div>
+    <div class="playarea">
+      <canvas id="board" width="240" height="480"></canvas>
+      <div class="side">
+        <div class="panelbox">
+          <div class="label">Score</div>
+          <div class="big" id="score">0</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Lines</div>
+          <div class="big" id="lines">0</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Level</div>
+          <div class="big" id="level">1</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Credit</div>
+          <div class="big" id="credit">0</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Next</div>
+          <div class="nextwrap"><canvas id="next" width="96" height="80"></canvas></div>
+        </div>
+        <div class="panelbox keys">
+          <div><b>&larr; &rarr;</b> Move</div>
+          <div><b>&darr;</b> Soft drop</div>
+          <div><b>Z / X</b> Rotate</div>
+          <div><b>Space</b> Hard drop</div>
+          <div><b>P</b> Pause</div>
+          <div><b>C</b> Insert coin</div>
+          <div><b>Enter</b> Start / Continue</div>
+        </div>
+      </div>
+    </div>
+    <div class="hint" id="startHint">Press <b>C</b> to insert coin, then <b>ENTER</b> (or tap buttons) to play</div>
+
+    <div class="touchpad" id="touchpad">
+      <div class="tcluster">
+        <div class="trow">
+          <button class="tbtn" data-act="rotate-ccw" aria-label="rotate counterclockwise">&#8634;</button>
+          <button class="tbtn" data-act="rotate-cw" aria-label="rotate clockwise">&#8635;</button>
+        </div>
+        <div class="trow">
+          <button class="tbtn wide" data-act="harddrop" aria-label="hard drop">DROP</button>
+        </div>
+      </div>
+      <div class="tcluster">
+        <div class="trow">
+          <button class="tbtn" data-act="left" aria-label="move left">&#9664;</button>
+          <button class="tbtn" data-act="right" aria-label="move right">&#9654;</button>
+        </div>
+        <div class="trow">
+          <button class="tbtn" data-act="softdrop" aria-label="soft drop">&#9660;</button>
+          <button class="tbtn" data-act="pause" aria-label="pause">II</button>
+        </div>
+      </div>
+      <div class="tcluster">
+        <div class="trow">
+          <button class="tbtn wide" data-act="coin" aria-label="insert coin">COIN</button>
+        </div>
+        <div class="trow">
+          <button class="tbtn wide" data-act="start" aria-label="start or continue">START</button>
+        </div>
+        <div class="tswipe-hint">탭: 좌우·회전·드롭<br>보드 스와이프: 좌우 이동</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CELL = 20;
+  var COLS = 12;
+  var ROWS = 24;
+  var canvas = document.getElementById("board");
+  var ctx = canvas.getContext("2d");
+  var nextCanvas = document.getElementById("next");
+  var nctx = nextCanvas.getContext("2d");
+
+  var scoreEl = document.getElementById("score");
+  var linesEl = document.getElementById("lines");
+  var levelEl = document.getElementById("level");
+  var creditEl = document.getElementById("credit");
+
+  // ---------- arcade state: credits / continue ----------
+  var STATE_TITLE = 0, STATE_PLAY = 1, STATE_CONTINUE = 2;
+  var CREDIT_KEY = "tetris_v3_credits";
+  var CONTINUE_TIME = 10; // seconds to continue after game over
+  var state = STATE_TITLE;
+  var credits = loadCredits();
+  var runScore = 0, runLines = 0, runLevel = 1; // preserved across continues
+  var contCountdown = 0, contLast = 0;
+
+  // Atari Tetris (1988) uses a distinct bright color set per tetromino.
+  var COLORS = {
+    I:"#00e6e6", J:"#2a5cff", L:"#ff8c00", O:"#ffe600",
+    S:"#00d43c", T:"#c14bff", Z:"#ff2b2b"
+  };
+
+  // Rotation states stored as [x,y] offsets relative to a pivot.
+  var SHAPES = {
+    I:[[[0,1],[1,1],[2,1],[3,1]],[[2,0],[2,1],[2,2],[2,3]],[[0,2],[1,2],[2,2],[3,2]],[[1,0],[1,1],[1,2],[1,3]]],
+    J:[[[-1,0],[0,0],[1,0],[1,1]],[[0,-1],[0,0],[1,0],[0,1]],[[-1,-1],[-1,0],[0,0],[1,0]],[[0,-1],[-1,0],[0,0],[0,1]]],
+    L:[[[0,0],[1,0],[2,0],[2,-1]],[[0,-1],[0,0],[0,1],[-1,0]],[[0,0],[1,0],[2,0],[2,-1]],[[0,-1],[0,0],[0,1],[-1,0]]],
+    O:[[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]]],
+    S:[[[0,0],[-1,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]],[[0,0],[-1,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]]],
+    T:[[[-1,0],[0,0],[1,0],[0,-1]],[[0,-1],[0,0],[0,1],[1,0]],[[-1,0],[0,0],[1,0],[0,1]],[[0,-1],[0,0],[0,1],[-1,0]]],
+    Z:[[[0,0],[1,0],[-1,1],[0,1]],[[0,-1],[0,0],[1,0],[1,1]],[[0,0],[1,0],[-1,1],[0,1]],[[0,-1],[0,0],[1,0],[1,1]]]
+  };
+
+  var PIECES = ["I","J","L","O","S","T","Z"];
+
+  var board, cur, next, score, lines, level, playing, paused, gameOver;
+  var dropCounter, dropInterval, lastTime;
+  var flashRows, flashTimer;
+
+  function loadCredits(){
+    try{
+      var v = parseInt(localStorage.getItem(CREDIT_KEY), 10);
+      return isFinite(v) && v>0 ? v : 0;
+    }catch(e){ return 0; }
+  }
+  function saveCredits(){
+    try{ localStorage.setItem(CREDIT_KEY, String(credits)); }catch(e){}
+  }
+  function updateCredit(){ creditEl.textContent = credits; }
+
+  function insertCoin(){
+    if(state===STATE_PLAY && !gameOver) return; // no coins mid-play
+    credits++; saveCredits(); updateCredit();
+  }
+
+  function newBoard(){
+    var b=[];
+    for(var r=0;r<ROWS;r++){ b.push(new Array(COLS).fill(null)); }
+    return b;
+  }
+
+  function bag(){
+    var b = PIECES.slice();
+    for(var i=b.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var t=b[i];b[i]=b[j];b[j]=t;
+    }
+    return b;
+  }
+
+  var queue = [];
+  function nextPiece(){
+    if(queue.length===0) queue = bag();
+    return queue.shift();
+  }
+
+  function spawn(type){
+    var t = type || next;
+    next = nextPiece();
+    var shape = SHAPES[t][0];
+    cur = {
+      type:t, rot:0,
+      x: Math.floor(COLS/2)-1,
+      y: -1,
+      cells: shape
+    };
+    if(collides(cur.cells,cur.x,cur.y)){ endGame(); }
+  }
+
+  function endGame(){
+    gameOver = true; playing = false;
+    runScore = score; runLines = lines; runLevel = level;
+    state = STATE_CONTINUE;
+    contCountdown = CONTINUE_TIME; contLast = performance.now();
+  }
+
+  function collides(cells,dx,dy){
+    for(var i=0;i<cells.length;i++){
+      var x=cells[i][0]+dx, y=cells[i][1]+dy;
+      if(x<0||x>=COLS||y>=ROWS) return true;
+      if(y>=0 && board[y][x]) return true;
+    }
+    return false;
+  }
+
+  function rotate(dir){
+    var nr = (cur.rot + (dir>0?1:3)) % 4;
+    var cells = SHAPES[cur.type][nr];
+    // Basic wall-kick attempts (Atari style is rigid but small kicks help playability)
+    var kicks=[0,-1,1,-2,2];
+    for(var k=0;k<kicks.length;k++){
+      if(!collides(cells,cur.x+kicks[k],cur.y)){
+        cur.rot=nr; cur.cells=cells; cur.x+=kicks[k]; return true;
+      }
+    }
+    return false;
+  }
+
+  function move(dx){
+    if(!collides(cur.cells,cur.x+dx,cur.y)) cur.x+=dx;
+  }
+
+  function softDrop(){
+    if(!collides(cur.cells,cur.x,cur.y+1)){ cur.y++; score+=1; return true; }
+    lock(); return false;
+  }
+
+  function hardDrop(){
+    var d=0;
+    while(!collides(cur.cells,cur.x,cur.y+1)){ cur.y++; d++; }
+    score += d*2;
+    lock();
+  }
+
+  function merge(){
+    for(var i=0;i<cur.cells.length;i++){
+      var x=cur.cells[i][0]+cur.x, y=cur.cells[i][1]+cur.y;
+      if(y>=0) board[y][x]=cur.type;
+    }
+  }
+
+  function lock(){
+    merge();
+    clearLines();
+    spawn(next);
+  }
+
+  function clearLines(){
+    var cleared=[];
+    for(var r=ROWS-1;r>=0;r--){
+      var full=true;
+      for(var c=0;c<COLS;c++){ if(!board[r][c]){ full=false; break; } }
+      if(full){ cleared.push(r); }
+    }
+    if(cleared.length===0) return;
+
+    flashRows = cleared.slice();
+    flashTimer = 8; // frames of white flash before removal (Atari-like blink)
+
+    for(var i=0;i<cleared.length;i++){ board.splice(cleared[i],1); board.unshift(new Array(COLS).fill(null)); }
+
+    var pts=[0,400,800,1200,2000];
+    score += (pts[cleared.length]||0) * level;
+    lines += cleared.length;
+    var newLevel = Math.floor(lines/10)+1;
+    if(newLevel>level){ level=newLevel; updateSpeed(); }
+  }
+
+  function updateSpeed(){
+    // Classic ramping gravity per level (ms).
+    dropInterval = Math.max(80, 1000 - (level-1)*90);
+  }
+
+  function ghostY(){
+    var y=cur.y;
+    while(!collides(cur.cells,cur.x,y+1)) y++;
+    return y;
+  }
+
+  // ---------- rendering ----------
+  function drawCell(c,x,y,color){
+    var px=x*CELL, py=y*CELL;
+    c.fillStyle=color;
+    c.fillRect(px+1,py+1,CELL-2,CELL-2);
+    // bevel highlight (Atari blocky look)
+    c.fillStyle="rgba(255,255,255,.35)";
+    c.fillRect(px+1,py+1,CELL-2,3);
+    c.fillRect(px+1,py+1,3,CELL-2);
+    c.fillStyle="rgba(0,0,0,.45)";
+    c.fillRect(px+1,py+CELL-4,CELL-2,3);
+    c.fillRect(px+CELL-4,py+1,3,CELL-2);
+  }
+
+  function drawBoard(){
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // subtle grid
+    ctx.strokeStyle="rgba(60,60,60,.25)";
+    ctx.lineWidth=1;
+    for(var x=0;x<=COLS;x++){ ctx.beginPath();ctx.moveTo(x*CELL+.5,0);ctx.lineTo(x*CELL+.5,ROWS*CELL);ctx.stroke(); }
+    for(var y=0;y<=ROWS;y++){ ctx.beginPath();ctx.moveTo(0,y*CELL+.5);ctx.lineTo(COLS*CELL,y*CELL+.5);ctx.stroke(); }
+
+    // locked cells
+    for(var r=0;r<ROWS;r++){
+      for(var c=0;c<COLS;c++){
+        if(board[r][c]){
+          var flashing = flashTimer>0 && flashRows.indexOf(r)>=0;
+          drawCell(ctx,c,r, flashing ? "#ffffff" : COLORS[board[r][c]]);
+        }
+      }
+    }
+
+    if(cur && !gameOver){
+      // ghost (subtle) for playability
+      var gy=ghostY();
+      ctx.globalAlpha=0.18;
+      for(var i=0;i<cur.cells.length;i++){
+        var gx=cur.cells[i][0]+cur.x, gyy=cur.cells[i][1]+gy;
+        if(gyy>=0) drawCell(ctx,gx,gyy,COLORS[cur.type]);
+      }
+      ctx.globalAlpha=1;
+
+      // active piece
+      for(var j=0;j<cur.cells.length;j++){
+        var ax=cur.cells[j][0]+cur.x, ay=cur.cells[j][1]+cur.y;
+        if(ay>=0) drawCell(ctx,ax,ay,COLORS[cur.type]);
+      }
+    }
+
+    if(flashTimer>0) flashTimer--;
+  }
+
+  function drawNext(){
+    nctx.fillStyle="#050505";
+    nctx.fillRect(0,0,nextCanvas.width,nextCanvas.height);
+    var cells=SHAPES[next][0];
+    var minx=99,maxx=-99,miny=99,maxy=-99;
+    for(var i=0;i<cells.length;i++){
+      minx=Math.min(minx,cells[i][0]); maxx=Math.max(maxx,cells[i][0]);
+      miny=Math.min(miny,cells[i][1]); maxy=Math.max(maxy,cells[i][1]);
+    }
+    var w=(maxx-minx+1), h=(maxy-miny+1);
+    var nc=18;
+    var ox=(nextCanvas.width - w*nc)/2 - minx*nc;
+    var oy=(nextCanvas.height - h*nc)/2 - miny*nc;
+    for(var k=0;k<cells.length;k++){
+      var px=(cells[k][0])*nc+ox, py=(cells[k][1])*nc+oy;
+      nctx.fillStyle=COLORS[next];
+      nctx.fillRect(px+1,py+1,nc-2,nc-2);
+      nctx.fillStyle="rgba(255,255,255,.35)";
+      nctx.fillRect(px+1,py+1,nc-2,2);
+      nctx.fillStyle="rgba(0,0,0,.45)";
+      nctx.fillRect(px+1,py+nc-3,nc-2,2);
+    }
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = score;
+    linesEl.textContent = lines;
+    levelEl.textContent = level;
+    creditEl.textContent = credits;
+  }
+
+  function overlay(text){
+    ctx.fillStyle="rgba(0,0,0,.75)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.textAlign="center";
+    var linesArr=text.split("\n");
+    var startY = canvas.height/2 - (linesArr.length-1)*14;
+    for(var i=0;i<linesArr.length;i++){
+      if(i===1){ ctx.fillStyle="#9fe8ff"; } else { ctx.fillStyle="#ffd23f"; }
+      ctx.font="bold 18px Courier New";
+      ctx.fillText(linesArr[i], canvas.width/2, startY + i*28);
+    }
+  }
+
+  function titleOverlay(){
+    overlay("TETRIS\nINSERT COIN\nCREDIT "+credits+"\nPRESS C / ENTER");
+  }
+
+  function continueOverlay(){
+    var c = Math.max(0, Math.ceil(contCountdown));
+    overlay("GAME OVER\nCONTINUE? "+c+"\nCREDIT "+credits+"\nC: CONTINUE   ESC: END");
+  }
+
+  // ---------- loop ----------
+  function update(time){
+    requestAnimationFrame(update);
+
+    if(state===STATE_TITLE){
+      drawBoard();
+      titleOverlay();
+      return;
+    }
+    if(state===STATE_CONTINUE){
+      contCountdown -= (time - contLast)/1000;
+      contLast = time;
+      drawBoard();
+      continueOverlay();
+      if(contCountdown<=0){ toTitle(); }
+      return;
+    }
+
+    // playing
+    if(paused){ drawBoard(); overlay("PAUSE"); return; }
+
+    var delta = time - lastTime;
+    lastTime = time;
+    dropCounter += delta;
+    if(dropCounter > dropInterval){
+      if(!collides(cur.cells,cur.x,cur.y+1)) cur.y++;
+      else lock();
+      dropCounter = 0;
+    }
+    drawBoard();
+    drawNext();
+    updateHUD();
+  }
+
+  function toTitle(){
+    state = STATE_TITLE;
+    playing=false; paused=false; gameOver=false;
+    board=newBoard(); cur=null; flashRows=[]; flashTimer=0;
+    score=runScore=0; lines=runLines=0; level=runLevel=1;
+    updateHUD();
+  }
+
+  // begin a fresh run (consumes one credit)
+  function start(){
+    if(credits<=0){ titleOverlay(); return; }
+    credits--; saveCredits(); updateCredit();
+    runScore=0; runLines=0; runLevel=1;
+    beginRun(0,0,1);
+  }
+
+  // resume the current run after a continue (consumes one credit)
+  function cont(){
+    if(state!==STATE_CONTINUE || credits<=0) return;
+    credits--; saveCredits(); updateCredit();
+    beginRun(runScore, runLines, runLevel);
+  }
+
+  function beginRun(sc,ln,lv){
+    board=newBoard();
+    score=sc; lines=ln; level=lv;
+    playing=true; paused=false; gameOver=false;
+    state=STATE_PLAY;
+    dropCounter=0; lastTime=performance.now();
+    flashRows=[]; flashTimer=0;
+    updateSpeed();
+    queue=[]; next=nextPiece();
+    spawn(next);
+    updateHUD();
+  }
+
+  // ---------- input ----------
+  document.addEventListener("keydown", function(e){
+    var k=e.key;
+
+    // insert coin (any non-playing screen)
+    if(k==="c"||k==="C"){ insertCoin(); e.preventDefault(); return; }
+
+    if(state===STATE_TITLE){
+      if(k==="Enter"){ start(); e.preventDefault(); }
+      return;
+    }
+    if(state===STATE_CONTINUE){
+      if(k==="Enter"){ cont(); e.preventDefault(); }
+      else if(k==="Escape"){ toTitle(); e.preventDefault(); }
+      return;
+    }
+
+    // playing
+    if(k==="p"||k==="P"){ paused=!paused; return; }
+    if(paused||gameOver) return;
+
+    switch(k){
+      case "ArrowLeft": move(-1); break;
+      case "ArrowRight": move(1); break;
+      case "ArrowDown": softDrop(); dropCounter=0; break;
+      case "z": case "Z": rotate(-1); break;
+      case "x": case "X": rotate(1); break;
+      case " ": hardDrop(); e.preventDefault(); break;
+    }
+  });
+
+  // ---------- touch controls ----------
+  function doAction(act){
+    if(act==="coin"){ insertCoin(); return; }
+    if(act==="start"){
+      if(state===STATE_TITLE) start();
+      else if(state===STATE_CONTINUE) cont();
+      return;
+    }
+    if(act==="pause"){ if(state===STATE_PLAY) paused=!paused; return; }
+    if(state!==STATE_PLAY || paused || gameOver) return;
+    switch(act){
+      case "left": move(-1); break;
+      case "right": move(1); break;
+      case "softdrop": softDrop(); dropCounter=0; break;
+      case "harddrop": hardDrop(); break;
+      case "rotate-cw": rotate(1); break;
+      case "rotate-ccw": rotate(-1); break;
+    }
+  }
+
+  var pad = document.getElementById("touchpad");
+  if(pad){
+    var btns = pad.querySelectorAll(".tbtn");
+    for(var bi=0;bi<btns.length;bi++){
+      (function(btn){
+        var act = btn.getAttribute("data-act");
+        btn.addEventListener("touchstart", function(e){ e.preventDefault(); doAction(act); }, {passive:false});
+        btn.addEventListener("click", function(e){ e.preventDefault(); doAction(act); });
+      })(btns[bi]);
+    }
+  }
+
+  // swipe on the board to move left/right, tap board to rotate
+  var touchStart = null;
+  canvas.addEventListener("touchstart", function(e){
+    if(e.touches.length===1){
+      touchStart = {x:e.touches[0].clientX, y:e.touches[0].clientY, moved:false};
+    }
+  }, {passive:true});
+  canvas.addEventListener("touchmove", function(e){
+    if(!touchStart || state!==STATE_PLAY || paused || gameOver) return;
+    var dx = e.touches[0].clientX - touchStart.x;
+    var threshold = CELL; // one cell in screen terms (approx)
+    if(Math.abs(dx) >= threshold){
+      if(dx>0) move(1); else move(-1);
+      touchStart.x = e.touches[0].clientX;
+      touchStart.moved = true;
+      e.preventDefault();
+    }
+  }, {passive:false});
+  canvas.addEventListener("touchend", function(e){
+    if(touchStart && !touchStart.moved && state===STATE_PLAY && !paused && !gameOver){
+      rotate(1);
+    }
+    touchStart = null;
+  }, {passive:true});
+
+  // responsive board scaling (keeps internal pixel resolution)
+  function fitBoard(){
+    var maxW = Math.min(window.innerWidth - 32, COLS*CELL);
+    if(window.innerWidth <= 640){
+      canvas.style.width = maxW + "px";
+      canvas.style.height = (maxW * ROWS / COLS) + "px";
+    } else {
+      canvas.style.width = "";
+      canvas.style.height = "";
+    }
+  }
+  window.addEventListener("resize", fitBoard);
+  fitBoard();
+
+  // init preview state (title screen)
+  board=newBoard(); score=0; lines=0; level=1; playing=false; paused=false; gameOver=false;
+  flashRows=[]; flashTimer=0; queue=[]; next="T"; cur=null;
+  updateSpeed(); drawNext(); updateCredit();
+  requestAnimationFrame(update);
+})();
+</script>
+</body>
+</html>
