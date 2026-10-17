@@ -150,6 +150,7 @@
 
 ### 03_defense_game_test
 
+- [simple_llm_test_aw_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_aw_defense_v1/index.html)
 - [simple_llm_test_bolt_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_bolt_defense_v1/index.html)
 - [simple_llm_test_cn_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_cn_defense_v1/index.html)
 - [simple_llm_test_lfm_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_lfm_defense_v1/index.html)
