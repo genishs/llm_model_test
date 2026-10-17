@@ -29,6 +29,7 @@
 
 - [simple_llm_test_aw_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_aw_tetris_v1/index.html)
 - [simple_llm_test_bolt_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_bolt_tetris_v1/index.html)
+- [simple_llm_test_bolt_tetris_v2](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_bolt_tetris_v2/index.html)
 - [simple_llm_test_c1_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_c1_tetris_v1/)
 - [simple_llm_test_c7_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_c7_tetris_v1/)
 - [simple_llm_test_c7r_tetris_v1](https://genishs.github.io/llm_model_test/01_tetris_game_test/simple_llm_test_c7r_tetris_v1/)
