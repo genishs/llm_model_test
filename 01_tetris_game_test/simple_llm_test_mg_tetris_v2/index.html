@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Atari Tetris 1988</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;height:100%;background:#000;color:#0f0;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center}
+#wrap{display:flex;gap:24px;align-items:flex-start}
+canvas{background:#000;border:4px solid #555;image-rendering:pixelated;max-width:100vw;height:auto}
+#side{line-height:1.4}
+h1{margin:0 0 8px;font-size:20px;color:#fff}
+button{background:#222;color:#0f0;border:2px solid #0f0;padding:6px 12px;cursor:pointer;font-family:inherit}
+button:hover{background:#111}
+#controls{display:none;position:fixed;left:0;right:0;bottom:0;padding:10px;background:rgba(0,0,0,0.8);justify-content:space-around;align-items:center;gap:8px}
+.ctrl{background:#222;color:#0f0;border:2px solid #0f0;padding:14px 18px;border-radius:8px;font-size:18px;user-select:none;-webkit-user-select:none}
+@media (max-width:700px){
+  #wrap{flex-direction:column;gap:12px}
+  #controls{display:flex}
+  h1{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="board" width="240" height="480"></canvas>
+<div id="side">
+<h1>ATARI TETRIS 1988</h1>
+<div id="info"></div>
+<button id="start">START / PAUSE</button>
+<p style="font-size:12px;color:#777;margin-top:12px">Arrow ←→ : 이동, ↓ : 소프트 드롭, ↑/X : 회전, Space : 하드 드롭</p>
+</div>
+</div>
+<div id="controls">
+<div class="ctrl" id="btn-left">◀</div>
+<div class="ctrl" id="btn-rotate">⟳</div>
+<div class="ctrl" id="btn-right">▶</div>
+<div class="ctrl" id="btn-down">▼</div>
+<div class="ctrl" id="btn-hard">■</div>
+</div>
+<script>
+const COLS=10, ROWS=20, SIZE=24;
+const canvas=document.getElementById('board'), ctx=canvas.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const COLORS={0:'#000',1:'#00f',2:'#0ff',3:'#ff0',4:'#f80',5:'#f0f',6:'#0f0',7:'#f00'};
+const SHAPES=[
+[[1]],
+[[1,1],[1,1]],
+[[0,1,0],[1,1,1]],
+[[1,1,1],[1,0,0]],
+[[0,0,1],[1,1,1]],
+[[1,0,0],[1,1,1]],
+[[1,1,0],[0,1,1]]
+];
+let board, cur, pos, next, score, lines, level, dropAcc, lastTime, running=false;
+function resetBoard(){board=Array.from({length:ROWS},()=>Array(COLS).fill(0));}
+function newPiece(){
+ const type=Math.floor(Math.random()*7)+1;
+ const shape=SHAPES[type-1].map(r=>[...r]);
+ return {type,shape};
+}
+function clonePiece(p){return {type:p.type,shape:p.shape.map(r=>[...r])};}
+function collides(p, x, y){
+ for(let r=0;r<p.shape.length;r++)for(let c=0;c<p.shape[r].length;c++){
+  if(!p.shape[r][c])continue;
+  const nx=x+c, ny=y+r;
+  if(nx<0||nx>=COLS||ny>=ROWS) return true;
+  if(ny>=0 && board[ny][nx]) return true;
+ }
+ return false;
+}
+function merge(){
+ for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++){
+  if(!cur.shape[r][c])continue;
+  const y=pos.y+r, x=pos.x+c;
+  if(y>=0) board[y][x]=cur.type;
+ }
+}
+function clearLines(){
+ let cleared=0;
+ for(let r=ROWS-1;r>=0;r--){
+  if(board[r].every(v=>v)){
+   board.splice(r,1);
+   board.unshift(Array(COLS).fill(0));
+   cleared++; r++;
+  }
+ }
+ if(cleared){
+  lines+=cleared;
+  score+= [40,100,300,1200][cleared-1]*(level+1);
+  level=Math.floor(lines/10)+1;
+ }
+}
+function rotate(p){
+ const s=p.shape, n=s[0].length, m=s.length;
+ const r=Array.from({length:n},()=>Array(m).fill(0));
+ for(let i=0;i<m;i++)for(let j=0;j<n;j++) r[j][m-1-i]=s[i][j];
+ return r;
+}
+function draw(){
+ ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+ // board
+ for(let y=0;y<ROWS;y++)for(let c=0;c<COLS;c++){
+  const v=board[y][c];
+  if(v){ctx.fillStyle=COLORS[v];ctx.fillRect(c*SIZE,y*SIZE,SIZE,SIZE);ctx.strokeStyle='#222';ctx.strokeRect(c*SIZE+0.5,y*SIZE+0.5,SIZE-1,SIZE-1);}
+ }
+ // current
+ if(cur){
+  ctx.fillStyle=COLORS[cur.type];
+  for(let r=0;r<cur.shape.length;r++)for(let c=0;c<cur.shape[r].length;c++)if(cur.shape[r][c]){
+   const x=pos.x+c, y=pos.y+r;
+   if(y>=0){ctx.fillRect(x*SIZE,y*SIZE,SIZE,SIZE);ctx.strokeStyle='#222';ctx.strokeRect(x*SIZE+0.5,y*SIZE+0.5,SIZE-1,SIZE-1);}
+  }
+ }
+}
+function updateInfo(){
+ document.getElementById('info').innerHTML=`SCORE<br>${score}<br><br>LINES<br>${lines}<br><br>LEVEL<br>${level}<br><br>NEXT`;
+}
+function spawn(){
+ cur=clonePiece(next);
+ next=newPiece();
+ pos={x:Math.floor(COLS/2)-2,y:-2};
+ if(collides(cur,pos.x,pos.y)){running=false;alert('GAME OVER');}
+}
+function step(){
+ if(!running) return;
+ const speed=Math.max(20,1000/(level+1));
+ dropAcc+=16;
+ if(dropAcc>=speed){
+  dropAcc=0;
+  pos.y++;
+  if(collides(cur,pos.x,pos.y)){pos.y--; merge(); clearLines(); spawn();}
+ }
+ draw(); updateInfo();
+ lastTime=performance.now();
+ requestAnimationFrame(step);
+}
+function startPause(){
+ if(!running){
+  resetBoard(); score=0; lines=0; level=1; next=newPiece(); spawn(); dropAcc=0; running=true; step();
+ } else running=!running;
+}
+document.getElementById('start').onclick=startPause;
+window.addEventListener('keydown',e=>{
+  if(!cur||!running) return;
+  if(e.code==='ArrowLeft' && !collides(cur,pos.x-1,pos.y)) pos.x--;
+  if(e.code==='ArrowRight' && !collides(cur,pos.x+1,pos.y)) pos.x++;
+  if(e.code==='ArrowDown' && !collides(cur,pos.x,pos.y+1)) pos.y++;
+  if(e.code==='ArrowUp'||e.code==='KeyX'){const r=rotate(cur); if(!collides({shape:r},pos.x,pos.y)) cur.shape=r;}
+  if(e.code==='Space'){while(!collides(cur,pos.x,pos.y+1)) pos.y++; pos.y++; merge(); clearLines(); spawn();}
+  draw();
+});
+function moveLeft(){if(cur&&running&&!collides(cur,pos.x-1,pos.y))pos.x--;}
+function moveRight(){if(cur&&running&&!collides(cur,pos.x+1,pos.y))pos.x++;}
+function softDrop(){if(cur&&running&&!collides(cur,pos.x,pos.y+1))pos.y++;}
+function doRotate(){if(cur&&running){const r=rotate(cur); if(!collides({shape:r},pos.x,pos.y)) cur.shape=r;}}
+function hardDrop(){if(cur&&running){while(!collides(cur,pos.x,pos.y+1)) pos.y++; pos.y++; merge(); clearLines(); spawn();}}
+document.getElementById('btn-left').addEventListener('touchstart',e=>{e.preventDefault();moveLeft();draw();});
+document.getElementById('btn-right').addEventListener('touchstart',e=>{e.preventDefault();moveRight();draw();});
+document.getElementById('btn-down').addEventListener('touchstart',e=>{e.preventDefault();softDrop();draw();});
+document.getElementById('btn-rotate').addEventListener('touchstart',e=>{e.preventDefault();doRotate();draw();});
+document.getElementById('btn-hard').addEventListener('touchstart',e=>{e.preventDefault();hardDrop();draw();});
+const canvasEl=document.getElementById('board');
+let touchStartX=0,touchStartY=0;
+canvasEl.addEventListener('touchstart',e=>{const t=e.touches[0];touchStartX=t.clientX;touchStartY=t.clientY;},{passive:true});
+canvasEl.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-touchStartX;const dy=t.clientY-touchStartY;if(Math.abs(dx)>Math.abs(dy)){if(dx>30)moveRight();else if(dx<-30)moveLeft();}else{if(dy>30)softDrop();else if(dy<-30)doRotate();}draw();},{passive:true});
+updateInfo();
+</script>
+</body>
+</html>
