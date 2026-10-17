@@ -66,4 +66,5 @@ Mamba-2 + Transformer 혼합 LatentMoE. 전체 74B 중 활성 9B. 이미지·영
 
 - [01 테트리스 게임 테스트](../01_tetris_game_test/README.md#9-결과--v1) — v1: 10위 / 총점 462 — 시작 직후 undefined 접근 예외로 빈 화면 · [v2](../01_tetris_game_test/README.md#9-2-결과--v2): 9위 / 총점 403 — v1 의 시작 예외 그대로, 터치 핸들러의 존재하지 않는 DOMRect.contains 호출까지 더해짐 · [v3](../01_tetris_game_test/README.md#9-3-결과--v3): 11위 / 총점 56 — 새 keydown 핸들러의 괄호 누락(문법 오류)으로 실행 불가
 - 테트리스 종합: v1 462 → v2 403 → v3 56, 평균 307 (종합 10위) — [종합 보기](../01_tetris_game_test/README.md#10-테트리스-종합--v1--v2--v3-완결)
-- [02 드래곤플라이트 게임 테스트](../02_dragonflight_game_test/README.md#9-결과--v1) — v1: 8위 / 총점 604 — 플레이어가 좌측 벽에 고정되고 검은 오버레이가 화면을 덮으며 적이 나오지 않음 · [v2](../02_dragonflight_game_test/README.md#9-2-결과--v2): 10위 / 총점 467 — v2 에서 변수 중복 선언 문법 오류로 스크립트 전체가 죽어 v1 에서 되던 기능까지 회귀(유일한 회귀) (v3 결과는 라운드 종료 후)
+- [02 드래곤플라이트 게임 테스트](../02_dragonflight_game_test/README.md#9-결과--v1) — v1: 8위 / 총점 604 — 플레이어가 좌측 벽에 고정되고 검은 오버레이가 화면을 덮으며 적이 나오지 않음 · [v2](../02_dragonflight_game_test/README.md#9-2-결과--v2): 10위 / 총점 467 — v2 에서 변수 중복 선언 문법 오류로 스크립트 전체가 죽어 v1 에서 되던 기능까지 회귀(유일한 회귀) · [v3](../02_dragonflight_game_test/README.md#9-3-결과--v3): 공동 10위 / 총점 337 — v2 의 중복 선언 문법 오류를 그대로 둬 실행 불가, 크레딧 투입 경로 없음
+- 드래곤플라이트 종합: v1 604 → v2 467 → v3 337, 평균 469.3 (종합 10위) — [종합 보기](../02_dragonflight_game_test/README.md#10-드래곤플라이트-종합--v1--v2--v3-완결)

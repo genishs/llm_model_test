@@ -61,4 +61,5 @@
 
 - [01 테트리스 게임 테스트](../01_tetris_game_test/README.md#9-결과--v1) — v1: 11위 / 총점 445 — 조각이 보이지 않고 Space 가 무한 루프로 브라우저를 멈춤 · [v2](../01_tetris_game_test/README.md#9-2-결과--v2): 11위 / 총점 343 — 정의되지 않은 canvas 참조로 스크립트가 중단되어 터치 무반응 · [v3](../01_tetris_game_test/README.md#9-3-결과--v3): 10위 / 총점 60 — v2 의 정의되지 않은 canvas 참조 오류를 그대로 둬 실행 불가
 - 테트리스 종합: v1 445 → v2 343 → v3 60, 평균 282.7 (종합 11위) — [종합 보기](../01_tetris_game_test/README.md#10-테트리스-종합--v1--v2--v3-완결)
-- [02 드래곤플라이트 게임 테스트](../02_dragonflight_game_test/README.md#9-결과--v1) — v1: 10위 / 총점 444 — 첫 프레임에서 const 재대입 예외로 루프가 죽어 실행 불가 · [v2](../02_dragonflight_game_test/README.md#9-2-결과--v2): 11위 / 총점 415 — v1 부터 실행 불가, viewport 메타가 없고 R3 로 실측 0 (v3 결과는 라운드 종료 후)
+- [02 드래곤플라이트 게임 테스트](../02_dragonflight_game_test/README.md#9-결과--v1) — v1: 10위 / 총점 444 — 첫 프레임에서 const 재대입 예외로 루프가 죽어 실행 불가 · [v2](../02_dragonflight_game_test/README.md#9-2-결과--v2): 11위 / 총점 415 — v1 부터 실행 불가, viewport 메타가 없고 R3 로 실측 0 · [v3](../02_dragonflight_game_test/README.md#9-3-결과--v3): 공동 10위 / 총점 337 — v1 부터의 const 재대입 예외로 실행 불가, 코인 투입 수단 없음
+- 드래곤플라이트 종합: v1 444 → v2 415 → v3 337, 평균 398.7 (종합 11위) — [종합 보기](../02_dragonflight_game_test/README.md#10-드래곤플라이트-종합--v1--v2--v3-완결)
