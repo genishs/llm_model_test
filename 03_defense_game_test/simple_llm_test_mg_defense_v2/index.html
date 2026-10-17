@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MG Defense - 타워 디펜스</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+<div id="ui">
+<div id="hud">
+<div>생명: <span id="health">100</span></div>
+<div>골드: <span id="gold">200</span></div>
+<div>파도: <span id="wave">1</span></div>
+</div>
+<div id="tower-menu">
+<button data-type="cannon">대포 50G</button>
+<button data-type="laser">레이저 80G</button>
+<button data-type="sniper">스나이퍼 120G</button>
+</div>
+<div id="message"></div>
+</div>
+<canvas id="game" width="900" height="600"></canvas>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
