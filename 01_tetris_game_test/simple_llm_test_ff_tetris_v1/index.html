@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atari Tetris (1988) - Web</title>
+<style>
+  :root{
+    --bg:#000;
+    --cabinet:#2b2b2b;
+    --bezel:#111;
+    --panel:#1a1a1a;
+    --line:#3a3a3a;
+    --text:#e8e8e8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:"Courier New",monospace;}
+  body{display:flex;align-items:center;justify-content:center;padding:16px;}
+  .cabinet{
+    background:linear-gradient(#3a3a3a,#202020);
+    border:4px solid #555;
+    border-radius:10px;
+    padding:14px;
+    box-shadow:0 0 40px rgba(0,0,0,.8), inset 0 0 30px rgba(0,0,0,.6);
+    max-width:100%;
+  }
+  .marquee{
+    text-align:center;
+    font-weight:bold;
+    letter-spacing:4px;
+    color:#ffd23f;
+    text-shadow:0 0 8px rgba(255,210,63,.5);
+    padding:6px 0 10px;
+    font-size:22px;
+  }
+  .marquee small{display:block;color:#c9c9c9;letter-spacing:2px;font-size:11px;margin-top:2px;}
+  .playarea{display:flex;gap:14px;align-items:flex-start;}
+  canvas{
+    background:#000;
+    border:3px solid #666;
+    image-rendering:pixelated;
+    box-shadow:inset 0 0 20px rgba(0,0,0,.9);
+    display:block;
+  }
+  .side{
+    display:flex;flex-direction:column;gap:10px;width:150px;
+  }
+  .panelbox{
+    background:var(--panel);
+    border:2px solid var(--line);
+    border-radius:6px;
+    padding:8px;
+  }
+  .label{font-size:11px;color:#9a9a9a;letter-spacing:2px;text-transform:uppercase;}
+  .big{font-size:26px;font-weight:bold;color:#fff;letter-spacing:2px;}
+  .nextwrap{display:flex;justify-content:center;}
+  #next{border:none;box-shadow:none;background:#050505;}
+  .keys{font-size:11px;line-height:1.7;color:#cfcfcf;}
+  .keys b{color:#ffd23f;}
+  .hint{text-align:center;font-size:11px;color:#8a8a8a;margin-top:10px;letter-spacing:1px;}
+  @media (max-width:640px){
+    .playarea{flex-direction:column;align-items:center;}
+    .side{width:auto;flex-direction:row;flex-wrap:wrap;}
+    .panelbox{flex:1;min-width:120px;}
+  }
+</style>
+</head>
+<body>
+  <div class="cabinet">
+    <div class="marquee">TETRIS<small>ATARI GAMES &copy; 1988 &middot; WEB RECREATION</small></div>
+    <div class="playarea">
+      <canvas id="board" width="240" height="480"></canvas>
+      <div class="side">
+        <div class="panelbox">
+          <div class="label">Score</div>
+          <div class="big" id="score">0</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Lines</div>
+          <div class="big" id="lines">0</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Level</div>
+          <div class="big" id="level">1</div>
+        </div>
+        <div class="panelbox">
+          <div class="label">Next</div>
+          <div class="nextwrap"><canvas id="next" width="96" height="80"></canvas></div>
+        </div>
+        <div class="panelbox keys">
+          <div><b>&larr; &rarr;</b> Move</div>
+          <div><b>&darr;</b> Soft drop</div>
+          <div><b>Z / X</b> Rotate</div>
+          <div><b>Space</b> Hard drop</div>
+          <div><b>P</b> Pause</div>
+          <div><b>Enter</b> Start</div>
+        </div>
+      </div>
+    </div>
+    <div class="hint">Press <b>ENTER</b> to start</div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CELL = 20;
+  var COLS = 12;
+  var ROWS = 24;
+  var canvas = document.getElementById("board");
+  var ctx = canvas.getContext("2d");
+  var nextCanvas = document.getElementById("next");
+  var nctx = nextCanvas.getContext("2d");
+
+  var scoreEl = document.getElementById("score");
+  var linesEl = document.getElementById("lines");
+  var levelEl = document.getElementById("level");
+
+  // Atari Tetris (1988) uses a distinct bright color set per tetromino.
+  var COLORS = {
+    I:"#00e6e6", J:"#2a5cff", L:"#ff8c00", O:"#ffe600",
+    S:"#00d43c", T:"#c14bff", Z:"#ff2b2b"
+  };
+
+  // Rotation states stored as [x,y] offsets relative to a pivot.
+  var SHAPES = {
+    I:[[[0,1],[1,1],[2,1],[3,1]],[[2,0],[2,1],[2,2],[2,3]],[[0,2],[1,2],[2,2],[3,2]],[[1,0],[1,1],[1,2],[1,3]]],
+    J:[[[-1,0],[0,0],[1,0],[1,1]],[[0,-1],[0,0],[1,0],[0,1]],[[-1,-1],[-1,0],[0,0],[1,0]],[[0,-1],[-1,0],[0,0],[0,1]]],
+    L:[[[0,0],[1,0],[2,0],[2,-1]],[[0,-1],[0,0],[0,1],[-1,0]],[[0,0],[1,0],[2,0],[2,-1]],[[0,-1],[0,0],[0,1],[-1,0]]],
+    O:[[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]]],
+    S:[[[0,0],[-1,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]],[[0,0],[-1,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]]],
+    T:[[[-1,0],[0,0],[1,0],[0,-1]],[[0,-1],[0,0],[0,1],[1,0]],[[-1,0],[0,0],[1,0],[0,1]],[[0,-1],[0,0],[0,1],[-1,0]]],
+    Z:[[[0,0],[1,0],[-1,1],[0,1]],[[0,-1],[0,0],[1,0],[1,1]],[[0,0],[1,0],[-1,1],[0,1]],[[0,-1],[0,0],[1,0],[1,1]]]
+  };
+
+  var PIECES = ["I","J","L","O","S","T","Z"];
+
+  var board, cur, next, score, lines, level, playing, paused, gameOver;
+  var dropCounter, dropInterval, lastTime;
+  var flashRows, flashTimer;
+
+  function newBoard(){
+    var b=[];
+    for(var r=0;r<ROWS;r++){ b.push(new Array(COLS).fill(null)); }
+    return b;
+  }
+
+  function bag(){
+    var b = PIECES.slice();
+    for(var i=b.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var t=b[i];b[i]=b[j];b[j]=t;
+    }
+    return b;
+  }
+
+  var queue = [];
+  function nextPiece(){
+    if(queue.length===0) queue = bag();
+    return queue.shift();
+  }
+
+  function spawn(type){
+    var t = type || next;
+    next = nextPiece();
+    var shape = SHAPES[t][0];
+    cur = {
+      type:t, rot:0,
+      x: Math.floor(COLS/2)-1,
+      y: -1,
+      cells: shape
+    };
+    if(collides(cur.cells,cur.x,cur.y)){ gameOver=true; playing=false; }
+  }
+
+  function collides(cells,dx,dy){
+    for(var i=0;i<cells.length;i++){
+      var x=cells[i][0]+dx, y=cells[i][1]+dy;
+      if(x<0||x>=COLS||y>=ROWS) return true;
+      if(y>=0 && board[y][x]) return true;
+    }
+    return false;
+  }
+
+  function rotate(dir){
+    var nr = (cur.rot + (dir>0?1:3)) % 4;
+    var cells = SHAPES[cur.type][nr];
+    // Basic wall-kick attempts (Atari style is rigid but small kicks help playability)
+    var kicks=[0,-1,1,-2,2];
+    for(var k=0;k<kicks.length;k++){
+      if(!collides(cells,cur.x+kicks[k],cur.y)){
+        cur.rot=nr; cur.cells=cells; cur.x+=kicks[k]; return true;
+      }
+    }
+    return false;
+  }
+
+  function move(dx){
+    if(!collides(cur.cells,cur.x+dx,cur.y)) cur.x+=dx;
+  }
+
+  function softDrop(){
+    if(!collides(cur.cells,cur.x,cur.y+1)){ cur.y++; score+=1; return true; }
+    lock(); return false;
+  }
+
+  function hardDrop(){
+    var d=0;
+    while(!collides(cur.cells,cur.x,cur.y+1)){ cur.y++; d++; }
+    score += d*2;
+    lock();
+  }
+
+  function merge(){
+    for(var i=0;i<cur.cells.length;i++){
+      var x=cur.cells[i][0]+cur.x, y=cur.cells[i][1]+cur.y;
+      if(y>=0) board[y][x]=cur.type;
+    }
+  }
+
+  function lock(){
+    merge();
+    clearLines();
+    spawn(next);
+  }
+
+  function clearLines(){
+    var cleared=[];
+    for(var r=ROWS-1;r>=0;r--){
+      var full=true;
+      for(var c=0;c<COLS;c++){ if(!board[r][c]){ full=false; break; } }
+      if(full){ cleared.push(r); }
+    }
+    if(cleared.length===0) return;
+
+    flashRows = cleared.slice();
+    flashTimer = 8; // frames of white flash before removal (Atari-like blink)
+
+    for(var i=0;i<cleared.length;i++){ board.splice(cleared[i],1); board.unshift(new Array(COLS).fill(null)); }
+
+    var pts=[0,400,800,1200,2000];
+    score += (pts[cleared.length]||0) * level;
+    lines += cleared.length;
+    var newLevel = Math.floor(lines/10)+1;
+    if(newLevel>level){ level=newLevel; updateSpeed(); }
+  }
+
+  function updateSpeed(){
+    // Classic ramping gravity per level (ms).
+    dropInterval = Math.max(80, 1000 - (level-1)*90);
+  }
+
+  function ghostY(){
+    var y=cur.y;
+    while(!collides(cur.cells,cur.x,y+1)) y++;
+    return y;
+  }
+
+  // ---------- rendering ----------
+  function drawCell(c,x,y,color){
+    var px=x*CELL, py=y*CELL;
+    c.fillStyle=color;
+    c.fillRect(px+1,py+1,CELL-2,CELL-2);
+    // bevel highlight (Atari blocky look)
+    c.fillStyle="rgba(255,255,255,.35)";
+    c.fillRect(px+1,py+1,CELL-2,3);
+    c.fillRect(px+1,py+1,3,CELL-2);
+    c.fillStyle="rgba(0,0,0,.45)";
+    c.fillRect(px+1,py+CELL-4,CELL-2,3);
+    c.fillRect(px+CELL-4,py+1,3,CELL-2);
+  }
+
+  function drawBoard(){
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // subtle grid
+    ctx.strokeStyle="rgba(60,60,60,.25)";
+    ctx.lineWidth=1;
+    for(var x=0;x<=COLS;x++){ ctx.beginPath();ctx.moveTo(x*CELL+.5,0);ctx.lineTo(x*CELL+.5,ROWS*CELL);ctx.stroke(); }
+    for(var y=0;y<=ROWS;y++){ ctx.beginPath();ctx.moveTo(0,y*CELL+.5);ctx.lineTo(COLS*CELL,y*CELL+.5);ctx.stroke(); }
+
+    // locked cells
+    for(var r=0;r<ROWS;r++){
+      for(var c=0;c<COLS;c++){
+        if(board[r][c]){
+          var flashing = flashTimer>0 && flashRows.indexOf(r)>=0;
+          drawCell(ctx,c,r, flashing ? "#ffffff" : COLORS[board[r][c]]);
+        }
+      }
+    }
+
+    if(cur && !gameOver){
+      // ghost (subtle) for playability
+      var gy=ghostY();
+      ctx.globalAlpha=0.18;
+      for(var i=0;i<cur.cells.length;i++){
+        var gx=cur.cells[i][0]+cur.x, gyy=cur.cells[i][1]+gy;
+        if(gyy>=0) drawCell(ctx,gx,gyy,COLORS[cur.type]);
+      }
+      ctx.globalAlpha=1;
+
+      // active piece
+      for(var j=0;j<cur.cells.length;j++){
+        var ax=cur.cells[j][0]+cur.x, ay=cur.cells[j][1]+cur.y;
+        if(ay>=0) drawCell(ctx,ax,ay,COLORS[cur.type]);
+      }
+    }
+
+    if(flashTimer>0) flashTimer--;
+  }
+
+  function drawNext(){
+    nctx.fillStyle="#050505";
+    nctx.fillRect(0,0,nextCanvas.width,nextCanvas.height);
+    var cells=SHAPES[next][0];
+    var minx=99,maxx=-99,miny=99,maxy=-99;
+    for(var i=0;i<cells.length;i++){
+      minx=Math.min(minx,cells[i][0]); maxx=Math.max(maxx,cells[i][0]);
+      miny=Math.min(miny,cells[i][1]); maxy=Math.max(maxy,cells[i][1]);
+    }
+    var w=(maxx-minx+1), h=(maxy-miny+1);
+    var nc=18;
+    var ox=(nextCanvas.width - w*nc)/2 - minx*nc;
+    var oy=(nextCanvas.height - h*nc)/2 - miny*nc;
+    for(var k=0;k<cells.length;k++){
+      var px=(cells[k][0])*nc+ox, py=(cells[k][1])*nc+oy;
+      nctx.fillStyle=COLORS[next];
+      nctx.fillRect(px+1,py+1,nc-2,nc-2);
+      nctx.fillStyle="rgba(255,255,255,.35)";
+      nctx.fillRect(px+1,py+1,nc-2,2);
+      nctx.fillStyle="rgba(0,0,0,.45)";
+      nctx.fillRect(px+1,py+nc-3,nc-2,2);
+    }
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = score;
+    linesEl.textContent = lines;
+    levelEl.textContent = level;
+  }
+
+  function overlay(text){
+    ctx.fillStyle="rgba(0,0,0,.75)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="#ffd23f";
+    ctx.textAlign="center";
+    ctx.font="bold 18px Courier New";
+    var linesArr=text.split("\n");
+    for(var i=0;i<linesArr.length;i++){
+      ctx.fillText(linesArr[i], canvas.width/2, canvas.height/2 - 20 + i*24);
+    }
+  }
+
+  // ---------- loop ----------
+  function update(time){
+    requestAnimationFrame(update);
+    if(!playing){
+      drawBoard();
+      if(gameOver) overlay("GAME OVER\nPress ENTER");
+      else overlay("TETRIS\nPress ENTER");
+      return;
+    }
+    if(paused){ drawBoard(); overlay("PAUSE"); return; }
+
+    var delta = time - lastTime;
+    lastTime = time;
+    dropCounter += delta;
+    if(dropCounter > dropInterval){
+      if(!collides(cur.cells,cur.x,cur.y+1)) cur.y++;
+      else lock();
+      dropCounter = 0;
+    }
+    drawBoard();
+    drawNext();
+    updateHUD();
+  }
+
+  function start(){
+    board=newBoard();
+    score=0; lines=0; level=1;
+    playing=true; paused=false; gameOver=false;
+    dropCounter=0; lastTime=performance.now();
+    flashRows=[]; flashTimer=0;
+    updateSpeed();
+    queue=[]; next=nextPiece();
+    spawn(next);
+  }
+
+  // ---------- input ----------
+  document.addEventListener("keydown", function(e){
+    var k=e.key;
+    if(k==="Enter"){ if(!playing||gameOver) start(); e.preventDefault(); return; }
+    if(!playing) return;
+    if(k==="p"||k==="P"){ paused=!paused; return; }
+    if(paused||gameOver) return;
+
+    switch(k){
+      case "ArrowLeft": move(-1); break;
+      case "ArrowRight": move(1); break;
+      case "ArrowDown": softDrop(); dropCounter=0; break;
+      case "z": case "Z": rotate(-1); break;
+      case "x": case "X": rotate(1); break;
+      case " ": hardDrop(); e.preventDefault(); break;
+    }
+  });
+
+  // init preview state
+  board=newBoard(); score=0; lines=0; level=1; playing=false; paused=false; gameOver=false;
+  flashRows=[]; flashTimer=0; queue=[]; next="T"; cur=null;
+  updateSpeed(); drawNext();
+  requestAnimationFrame(update);
+})();
+</script>
+</body>
+</html>
