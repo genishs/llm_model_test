@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Simple Defense</title>
+<style>
+  body { margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; color:#fff; }
+  canvas { border:2px solid #555; background:#000; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="480" height="640"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game state
+let gameState = 'start'; // start, playing, gameover
+let score = 0;
+let enemies = [];
+let bullets = [];
+let player = { x: 200, y: 580, w: 60, h: 20, speed: 5 };
+let keys = {};
+
+// Input handling
+window.addEventListener('keydown', e => { keys[e.key] = true; if(e.key === ' ') e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Enemy spawning
+function spawnEnemy() {
+  const type = Math.random() > 0.7 ? 2 : 1;
+  enemies.push({
+    x: 20 + Math.random() * (canvas.width - 40),
+    y: -30,
+    w: type === 1 ? 30 : 50,
+    h: type === 1 ? 30 : 40,
+    speed: type === 1 ? 2 : 1.5,
+    color: '#f00'
+  });
+}
+
+// Shooting
+function shoot() {
+  bullets.push({
+    x: player.x + player.w / 2 - 3,
+    y: player.y,
+    w: 6,
+    h: 15,
+    speed: 7
+  });
+}
+
+// Collision detection
+function checkCollision(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// Game loop
+function update() {
+  if (gameState !== 'playing') return;
+
+  // Player movement
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x -= player.speed;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x += player.speed;
+  player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
+
+  // Shooting with space
+  if (keys[' '] && Math.random() < 0.3) shoot();
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    bullets[i].y -= bullets[i].speed;
+    if (bullets[i].y + bullets[i].h < 0) bullets.splice(i, 1);
+  }
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.y += e.speed;
+    if (e.y > canvas.height + e.h) {
+      gameState = 'gameover';
+      enemies.splice(i, 1);
+      continue;
+    }
+    // Collision with player
+    if (checkCollision(player, e)) {
+      gameState = 'gameover';
+      enemies.splice(i, 1);
+      continue;
+    }
+    // Collision with bullets
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      if (checkCollision(bullets[j], e)) {
+        score += 10;
+        enemies.splice(i, 1);
+        bullets.splice(j, 1);
+        break;
+      }
+    }
+  }
+
+  // Enemy spawning
+  if (Math.random() < 0.02) spawnEnemy();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Draw player
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  // Draw bullets
+  ctx.fillStyle = '#ff0';
+  for (const b of bullets) {
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+  }
+  // Draw enemies
+  for (const e of enemies) {
+    ctx.fillStyle = e.color;
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+  }
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText('Score: ' + score, 10, 30);
+  // Overlay messages
+  if (gameState === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Simple Defense', canvas.width/2, canvas.height/2 - 20);
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Arrow keys / A-D move | Space to shoot', canvas.width/2, canvas.height/2 + 20);
+    ctx.fillText('Defend the base!', canvas.width/2, canvas.height/2 + 40);
+  } else if (gameState === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f00';
+    ctx.font = '28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 20);
+    ctx.fillStyle = '#fff';
+    ctx.font = '18px sans-serif';
+    ctx.fillText('Score: ' + score, canvas.width/2, canvas.height/2 + 10);
+    ctx.fillText('Press R to restart', canvas.width/2, canvas.height/2 + 40);
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Restart
+window.addEventListener('keydown', e => {
+  if (e.key === 'r' && gameState === 'gameover') {
+    score = 0;
+    enemies = [];
+    bullets = [];
+    player.x = 200;
+    gameState = 'playing';
+  }
+});
+
+// Start
+gameLoop();
+</script>
+</body>
+</html>
