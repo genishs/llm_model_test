@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atari Tetris (1988)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #fff;
+    font-family: "Courier New", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #wrap {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transform-origin: center center;
+  }
+  .panel {
+    background: #1a1a1a;
+    border: 4px solid #333;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8) inset;
+  }
+  #boardWrap { position: relative; }
+  canvas { display: block; background: #000; }
+  .side { min-width: 150px; }
+  .title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-bottom: 14px;
+    color: #ffcf00;
+    text-shadow: 2px 2px #b88600;
+  }
+  .box {
+    margin-bottom: 16px;
+  }
+  .label {
+    font-size: 13px;
+    color: #8fd7ff;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .value {
+    font-size: 26px;
+    font-weight: bold;
+    color: #fff;
+    text-align: right;
+    letter-spacing: 2px;
+  }
+  #nextCanvas, #holdCanvas {
+    background: #000;
+    border: 2px solid #333;
+    display: block;
+    margin: 0 auto;
+  }
+  .legend {
+    font-size: 11px;
+    color: #999;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+  .legend b { color: #ffcf00; }
+  #touchControls {
+    display: none;
+    width: 100%;
+    max-width: 500px;
+    margin-top: 16px;
+    padding: 0 8px;
+  }
+  .touch-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .touch-btn {
+    flex: 0 0 auto;
+    min-width: 54px;
+    height: 58px;
+    background: #1a1a1a;
+    border: 3px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 22px;
+    font-family: "Courier New", monospace;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    box-shadow: 0 0 12px rgba(0,0,0,0.6) inset;
+  }
+  .touch-btn:active {
+    background: #2b2b2b;
+    border-color: #ffcf00;
+  }
+  .touch-btn.wide {
+    flex: 1 1 auto;
+    min-width: 70px;
+  }
+  .touch-btn.rotate {
+    color: #ffcf00;
+  }
+  .touch-btn.action {
+    color: #7dff7d;
+    font-size: 16px;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 4px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 {
+    font-size: 34px;
+    color: #ffcf00;
+    letter-spacing: 4px;
+    margin-bottom: 18px;
+    text-shadow: 2px 2px #b88600;
+  }
+  #overlay p {
+    font-size: 15px;
+    color: #fff;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  #overlay .blink {
+    margin-top: 22px;
+    color: #7dff7d;
+    font-size: 16px;
+    animation: blink 1s steps(2, start) infinite;
+  }
+  @keyframes blink { to { visibility: hidden; } }
+  .keyrows { margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="panel" id="boardWrap">
+    <canvas id="board" width="300" height="600"></canvas>
+    <div id="overlay">
+      <h1>TETRIS</h1>
+      <p id="overlaySub">ATARI 1988</p>
+      <p class="blink" id="overlayBtn">PRESS START</p>
+    </div>
+  </div>
+  <div class="panel side">
+    <div class="title">TETRIS</div>
+    <div class="box">
+      <div class="label">SCORE</div>
+      <div class="value" id="score">0</div>
+    </div>
+    <div class="box">
+      <div class="label">LINES</div>
+      <div class="value" id="lines">0</div>
+    </div>
+    <div class="box">
+      <div class="label">LEVEL</div>
+      <div class="value" id="level">1</div>
+    </div>
+    <div class="box">
+      <div class="label">NEXT</div>
+      <canvas id="nextCanvas" width="120" height="120"></canvas>
+    </div>
+    <div class="box">
+      <div class="label">HOLD</div>
+      <canvas id="holdCanvas" width="120" height="120"></canvas>
+    </div>
+    <div class="legend keyrows">
+      <b>조작법</b><br>
+      ← → : 이동<br>
+      ↓ : 소프트 드롭<br>
+      ↑ / X : 시계<br>
+      Z : 반시계<br>
+      Space : 하드 드롭<br>
+      C : 홀드<br>
+      P : 일시정지<br>
+      Enter : 시작/재시작
+    </div>
+  </div>
+</div>
+
+<div id="touchControls">
+  <div class="touch-row">
+    <button class="touch-btn rotate" id="btnRotateCW" aria-label="시계 회전">↻</button>
+    <button class="touch-btn action" id="btnHard" aria-label="하드 드롭">DROP</button>
+    <button class="touch-btn rotate" id="btnRotateCCW" aria-label="반시계 회전">↺</button>
+  </div>
+  <div class="touch-row">
+    <button class="touch-btn" id="btnLeft" aria-label="좌우 이동">◀</button>
+    <button class="touch-btn" id="btnDown" aria-label="소프트 드롭">▼</button>
+    <button class="touch-btn" id="btnRight" aria-label="좌우 이동">▶</button>
+  </div>
+  <div class="touch-row">
+    <button class="touch-btn action" id="btnHold" aria-label="홀드">HOLD</button>
+    <button class="touch-btn action" id="btnPause" aria-label="일시정지">PAUSE</button>
+    <button class="touch-btn action" id="btnStart" aria-label="시작">START</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Constants -----------------------------------------------------------
+  const COLS = 10;
+  const ROWS = 20;
+  const CELL = 30;              // 300 / 10
+  const HIDDEN = 2;             // hidden rows above the field (Atari)
+  const TOTAL_ROWS = ROWS + HIDDEN;
+
+  const board = document.getElementById("board");
+  const bctx = board.getContext("2d");
+  const nextCanvas = document.getElementById("nextCanvas");
+  const nctx = nextCanvas.getContext("2d");
+  const holdCanvas = document.getElementById("holdCanvas");
+  const hctx = holdCanvas.getContext("2d");
+
+  const scoreEl = document.getElementById("score");
+  const linesEl = document.getElementById("lines");
+  const levelEl = document.getElementById("level");
+  const overlay = document.getElementById("overlay");
+  const overlaySub = document.getElementById("overlaySub");
+  const overlayBtn = document.getElementById("overlayBtn");
+
+  // ---- Tetromino definitions ------------------------------------------------
+  // Standard SRS color palette (Atari-ish saturated colors)
+  const COLORS = {
+    I: "#00f0f0", // cyan
+    O: "#f8f800", // yellow
+    T: "#a000f0", // purple
+    S: "#00f800", // green
+    Z: "#f80000", // red
+    J: "#0000f8", // blue
+    L: "#f8a000"  // orange
+  };
+
+  // Rotation states defined with proper SRS rotation-data for wall kicks
+  const SHAPES = {
+    I: [[0,1],[1,1],[2,1],[3,1]],
+    O: [[1,0],[2,0],[1,1],[2,1]],
+    T: [[1,0],[0,1],[1,1],[2,1]],
+    S: [[1,0],[2,0],[0,1],[1,1]],
+    Z: [[0,0],[1,0],[1,1],[2,1]],
+    J: [[0,0],[0,1],[1,1],[2,1]],
+    L: [[2,0],[0,1],[1,1],[2,1]]
+  };
+
+  // SRS wall kick data: [fromRotation] -> list of [dx,dy] offsets to try
+  // Note: dy positive means down; piece spawns so that y offset accounts for hidden rows.
+  const KICKS_JLSTZ = {
+    "0>1": [[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
+    "1>0": [[0,0],[1,0],[1,-1],[0,2],[1,2]],
+    "1>2": [[0,0],[1,0],[1,-1],[0,2],[1,2]],
+    "2>1": [[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
+    "2>3": [[0,0],[1,0],[1,1],[0,-2],[1,-2]],
+    "3>2": [[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],
+    "3>0": [[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],
+    "0>3": [[0,0],[1,0],[1,1],[0,-2],[1,-2]]
+  };
+  const KICKS_I = {
+    "0>1": [[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
+    "1>0": [[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
+    "1>2": [[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
+    "2>1": [[0,0],[1,0],[-2,0],[1,-2],[-2,1]],
+    "2>3": [[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
+    "3>2": [[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
+    "3>0": [[0,0],[1,0],[-2,0],[1,-2],[-2,1]],
+    "0>3": [[0,0],[-1,0],[2,0],[-1,2],[2,-1]]
+  };
+
+  // ---- Game state -----------------------------------------------------------
+  let grid;                 // grid[row][col], null or color string
+  let current, nextQueue, holdPiece, canHold;
+  let score, lines, level;
+  let dropCounter, dropInterval, lastTime;
+  let gameState = "ready";  // ready | playing | paused | over
+  let bag = [];
+
+  // ---- Utility --------------------------------------------------------------
+  function makeGrid() {
+    const g = [];
+    for (let r = 0; r < TOTAL_ROWS; r++) {
+      g.push(new Array(COLS).fill(null));
+    }
+    return g;
+  }
+
+  // 7-bag randomizer
+  function nextFromBag() {
+    if (bag.length === 0) {
+      const types = ["I","O","T","S","Z","J","L"];
+      for (let i = types.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [types[i], types[j]] = [types[j], types[i]];
+      }
+      bag = types;
+    }
+    return bag.pop();
+  }
+
+  // Build a piece object
+  function spawnPiece(type) {
+    return {
+      type: type,
+      cells: SHAPES[type].map(c => [c[0], c[1]]),
+      rot: 0,
+      x: 3,               // column offset (top-left of 4x4 bounding box)
+      y: HIDDEN - 1       // start just above visible area
+    };
+  }
+
+  // Rotate cells around the piece's bounding box (counter or clockwise)
+  function rotateCells(cells, clockwise) {
+    // Determine bounding box size (I is 4 wide, others 3)
+    let max = 0;
+    for (const c of cells) if (c[0] > max) max = c[0];
+    const size = max + 1; // 4 for I, 3 for others
+    const newCells = cells.map(([x, y]) => {
+      if (clockwise) return [size - 1 - y, x];
+      return [y, size - 1 - x];
+    });
+    return newCells;
+  }
+
+  // Current rotation state (0..3)
+  function curRot(piece) { return piece.rot; }
+
+  // Collision test
+  function collides(piece) {
+    for (const [cx, cy] of piece.cells) {
+      const x = piece.x + cx;
+      const y = piece.y + cy;
+      if (x < 0 || x >= COLS || y >= TOTAL_ROWS) return true;
+      if (y >= 0 && grid[y][x]) return true;
+    }
+    return false;
+  }
+
+  // Lock piece into grid
+  function lockPiece() {
+    let aboveField = false;
+    for (const [cx, cy] of current.cells) {
+      const x = current.x + cx;
+      const y = current.y + cy;
+      if (y >= 0 && y < TOTAL_ROWS && x >= 0 && x < COLS) {
+        grid[y][x] = current.type;
+      }
+      if (y < HIDDEN) aboveField = true;
+    }
+    if (aboveField) { gameOver(); return; }
+    clearLines();
+    spawnNext();
+  }
+
+  // Clear full rows
+  function clearLines() {
+    let cleared = 0;
+    for (let r = TOTAL_ROWS - 1; r >= 0; r--) {
+      if (grid[r].every(c => c)) {
+        grid.splice(r, 1);
+        grid.unshift(new Array(COLS).fill(null));
+        cleared++;
+        r++; // recheck same index after shift
+      }
+    }
+    if (cleared > 0) {
+      // Atari scoring: 1=100, 2=300, 3=500, 4=800 (x level multiplier)
+      const base = [0, 100, 300, 500, 800];
+      score += base[cleared] * level;
+      lines += cleared;
+      // Level up every 10 lines (Atari style)
+      const newLevel = Math.floor(lines / 10) + 1;
+      if (newLevel !== level) {
+        level = newLevel;
+        dropInterval = Math.max(50, 800 - (level - 1) * 70);
+      }
+      updateHud();
+      flashCleared(cleared);
+    }
+  }
+
+  // ---- Movement -------------------------------------------------------------
+  function move(dir) {
+    if (gameState !== "playing") return;
+    current.x += dir;
+    if (collides(current)) current.x -= dir;
+  }
+
+  function softDrop() {
+    if (gameState !== "playing") return;
+    current.y++;
+    if (collides(current)) {
+      current.y--;
+      lockPiece();
+    } else {
+      score += 1;
+      updateHud();
+    }
+    dropCounter = 0;
+  }
+
+  function hardDrop() {
+    if (gameState !== "playing") return;
+    let dist = 0;
+    while (!collides(current)) {
+      current.y++;
+      dist++;
+    }
+    current.y--;
+    dist--;
+    score += Math.max(0, (dist - 1) * 2);
+    updateHud();
+    lockPiece();
+    dropCounter = 0;
+  }
+
+  function rotatePiece(clockwise) {
+    if (gameState !== "playing") return;
+    if (current.type === "O") return;
+    const saved = {
+      cells: current.cells.slice(),
+      rot: current.rot,
+      x: current.x,
+      y: current.y
+    };
+    const oldRot = current.rot;
+    const newRot = clockwise ? (oldRot + 1) % 4 : (oldRot + 3) % 4;
+    const key = oldRot + ">" + newRot;
+    const kicks = (current.type === "I") ? KICKS_I[key] : KICKS_JLSTZ[key];
+    const newCells = rotateCells(current.cells, clockwise);
+    const kickList = kicks || [[0,0]];
+    for (const [kx, ky] of kickList) {
+      current.cells = newCells;
+      current.rot = newRot;
+      current.x += kx;
+      current.y -= ky;
+      if (!collides(current)) return;
+    }
+    // failed: restore
+    current.cells = saved.cells;
+    current.rot = saved.rot;
+    current.x = saved.x;
+    current.y = saved.y;
+  }
+
+  // Hold piece
+  function hold() {
+    if (gameState !== "playing" || !canHold) return;
+    const type = current.type;
+    if (holdPiece === null) {
+      holdPiece = type;
+      spawnNext();
+    } else {
+      const swap = holdPiece;
+      holdPiece = type;
+      current = spawnPiece(swap);
+      if (collides(current)) { gameOver(); return; }
+    }
+    canHold = false;
+  }
+
+  function spawnNext() {
+    current = spawnPiece(nextQueue.shift());
+    nextQueue.push(nextFromBag());
+    canHold = true;
+    if (collides(current)) gameOver();
+  }
+
+  // ---- Rendering ------------------------------------------------------------
+  function drawCell(ctx, x, y, color, size) {
+    const px = x * size;
+    const py = y * size;
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, size, size);
+    // inner highlight/shadow for the classic beveled block look
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(px, py, size, 3);
+    ctx.fillRect(px, py, 3, size);
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(px, py + size - 3, size, 3);
+    ctx.fillRect(px + size - 3, py, 3, size);
+    // dark border
+    ctx.strokeStyle = "rgba(0,0,0,0.6)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+  }
+
+  function drawGridLines() {
+    bctx.strokeStyle = "rgba(60,60,60,0.6)";
+    bctx.lineWidth = 1;
+    for (let c = 0; c <= COLS; c++) {
+      bctx.beginPath();
+      bctx.moveTo(c * CELL + 0.5, 0);
+      bctx.lineTo(c * CELL + 0.5, ROWS * CELL);
+      bctx.stroke();
+    }
+    for (let r = 0; r <= ROWS; r++) {
+      bctx.beginPath();
+      bctx.moveTo(0, r * CELL + 0.5);
+      bctx.lineTo(COLS * CELL, r * CELL + 0.5);
+      bctx.stroke();
+    }
+  }
+
+  // Ghost piece (landing preview)
+  function ghostY() {
+    const ghost = {
+      cells: current.cells.slice(),
+      rot: current.rot,
+      x: current.x,
+      y: current.y
+    };
+    while (!collides(ghost)) ghost.y++;
+    ghost.y--;
+    return ghost.y;
+  }
+
+  function render() {
+    // clear
+    bctx.fillStyle = "#000";
+    bctx.fillRect(0, 0, board.width, board.height);
+
+    drawGridLines();
+
+    // settled blocks (skip the hidden rows when drawing)
+    for (let r = HIDDEN; r < TOTAL_ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r][c]) {
+          drawCell(bctx, c, r - HIDDEN, COLORS[grid[r][c]], CELL);
+        }
+      }
+    }
+
+    if (current) {
+      // ghost
+      const gy = ghostY();
+      bctx.save();
+      bctx.globalAlpha = 0.35;
+      for (const [cx, cy] of current.cells) {
+        const vy = gy + cy;
+        if (vy >= HIDDEN) drawCell(bctx, current.x + cx, vy - HIDDEN, COLORS[current.type], CELL);
+      }
+      bctx.restore();
+
+      // active piece
+      for (const [cx, cy] of current.cells) {
+        const vy = current.y + cy;
+        if (vy >= HIDDEN) drawCell(bctx, current.x + cx, vy - HIDDEN, COLORS[current.type], CELL);
+      }
+    }
+
+    drawNext();
+    drawHold();
+  }
+
+  function drawMini(ctx, cv, type) {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!type) return;
+    const size = 24;
+    // compute bounding box
+    let minX = 99, maxX = -1, minY = 99, maxY = -1;
+    for (const [x, y] of SHAPES[type]) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    const w = (maxX - minX + 1) * size;
+    const h = (maxY - minY + 1) * size;
+    const ox = (cv.width - w) / 2 - minX * size;
+    const oy = (cv.height - h) / 2 - minY * size;
+    for (const [x, y] of SHAPES[type]) {
+      const px = ox + x * size;
+      const py = oy + y * size;
+      ctx.fillStyle = COLORS[type];
+      ctx.fillRect(px, py, size, size);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fillRect(px, py, size, 3);
+      ctx.fillRect(px, py, 3, size);
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(px, py + size - 3, size, 3);
+      ctx.fillRect(px + size - 3, py, 3, size);
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.strokeRect(px + 0.5, py + 0.5, size - 1, size - 1);
+    }
+  }
+
+  function drawNext() { drawMini(nctx, nextCanvas, nextQueue[0]); }
+  function drawHold() { drawMini(hctx, holdCanvas, holdPiece); }
+
+  // ---- HUD ------------------------------------------------------------------
+  function updateHud() {
+    scoreEl.textContent = score;
+    linesEl.textContent = lines;
+    levelEl.textContent = level;
+  }
+
+  // ---- Loop -----------------------------------------------------------------
+  function loop(time) {
+    if (gameState === "playing") {
+      const dt = time - lastTime;
+      lastTime = time;
+      dropCounter += dt;
+      if (dropCounter > dropInterval) {
+        current.y++;
+        if (collides(current)) {
+          current.y--;
+          lockPiece();
+        }
+        dropCounter = 0;
+      }
+      render();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // ---- Game flow ------------------------------------------------------------
+  function startGame() {
+    grid = makeGrid();
+    bag = [];
+    nextQueue = [nextFromBag(), nextFromBag(), nextFromBag()];
+    holdPiece = null;
+    canHold = true;
+    score = 0; lines = 0; level = 1;
+    dropCounter = 0;
+    dropInterval = 800;
+    lastTime = performance.now();
+    spawnNext();
+    updateHud();
+    gameState = "playing";
+    overlay.classList.add("hidden");
+  }
+
+  function gameOver() {
+    gameState = "over";
+    overlaySub.textContent = "GAME OVER";
+    overlayBtn.textContent = "PRESS ENTER";
+    overlay.classList.remove("hidden");
+  }
+
+  function togglePause() {
+    if (gameState === "playing") {
+      gameState = "paused";
+      overlaySub.textContent = "PAUSED";
+      overlayBtn.textContent = "PRESS P";
+      overlay.classList.remove("hidden");
+    } else if (gameState === "paused") {
+      gameState = "playing";
+      lastTime = performance.now();
+      overlay.classList.add("hidden");
+    }
+  }
+
+  // ---- Touch controls -------------------------------------------------------
+  function isTouchDevice() {
+    if ("maxTouchPoints" in navigator) {
+      return navigator.maxTouchPoints > 0;
+    }
+    return "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  }
+
+  // Button bindings: which action each control performs
+  const touchButtons = {
+    "btnLeft":    () => move(-1),
+    "btnRight":   () => move(1),
+    "btnDown":    () => softDrop(),
+    "btnRotateCW": () => rotatePiece(true),
+    "btnRotateCCW": () => rotatePiece(false),
+    "btnHard":    () => hardDrop(),
+    "btnHold":    () => hold(),
+    "btnPause":   () => togglePause(),
+    "btnStart":   () => { if (gameState !== "playing") startGame(); }
+  };
+
+  function handleTouchAction(id) {
+    if (touchButtons[id]) touchButtons[id]();
+  }
+
+  function setupTouchControls() {
+    const controls = document.getElementById("touchControls");
+
+    // Tap handlers for buttons
+    for (const id in touchButtons) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      // Use touchstart to reduce latency; prevent it from also firing click
+      el.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        handleTouchAction(id);
+      }, { passive: false });
+    }
+
+    // Swipe gestures on the board
+    let touchStartX = null;
+    let touchStartY = null;
+    let touchStartTime = null;
+    let swipeHandled = false;
+
+    board.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) { return; }
+      const t = e.touches[0];
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      touchStartTime = Date.now();
+      swipeHandled = false;
+    }, { passive: true });
+
+    board.addEventListener("touchmove", (e) => {
+      if (gameState !== "playing") { return; }
+      if (e.touches.length !== 1) { return; }
+      if (touchStartX === null) { return; }
+      const t = e.touches[0];
+      const dx = t.clientX - touchStartX;
+      const dy = t.clientY - touchStartY;
+      const moved = Math.abs(dx) + Math.abs(dy);
+      const THRESHOLD = 24;
+
+      if (!swipeHandled && Math.abs(dx) > THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault();
+        handleTouchAction(dx > 0 ? "btnRight" : "btnLeft");
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        swipeHandled = true;
+      } else if (!swipeHandled && dy > THRESHOLD && Math.abs(dy) > Math.abs(dx)) {
+        e.preventDefault();
+        handleTouchAction("btnDown");
+        touchStartY = t.clientY;
+        swipeHandled = true;
+      }
+    }, { passive: false });
+
+    board.addEventListener("touchend", (e) => {
+      if (touchStartX === null) { return; }
+      const dt = Date.now() - touchStartTime;
+      const doubleTap = e.touches.length === 0 && dt < 300 && swipeHandled === false;
+      // Fast upward flick = clockwise rotation
+      if (!swipeHandled && e.changedTouches.length === 1) {
+        const t = e.changedTouches[0];
+        const dy = t.clientY - touchStartY;
+        const dx = t.clientX - touchStartX;
+        if (dy < -40 && Math.abs(dy) > Math.abs(dx)) {
+          e.preventDefault();
+          handleTouchAction("btnRotateCW");
+        }
+      }
+      // Double tap = hard drop
+      if (doubleTap) {
+        e.preventDefault();
+        handleTouchAction("btnHard");
+      }
+      touchStartX = null;
+      touchStartY = null;
+      touchStartTime = null;
+      swipeHandled = false;
+    }, { passive: false });
+  }
+
+  // ---- Input ----------------------------------------------------------------
+  document.addEventListener("keydown", (e) => {
+    switch (e.code) {
+      case "ArrowLeft":
+        e.preventDefault();
+        if (gameState === "playing") move(-1);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        if (gameState === "playing") move(1);
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        softDrop();
+        break;
+      case "ArrowUp":
+      case "KeyX":
+        e.preventDefault();
+        rotatePiece(true);
+        break;
+      case "KeyZ":
+        e.preventDefault();
+        rotatePiece(false);
+        break;
+      case "Space":
+        e.preventDefault();
+        hardDrop();
+        break;
+      case "KeyC":
+        e.preventDefault();
+        hold();
+        break;
+      case "KeyP":
+        e.preventDefault();
+        togglePause();
+        break;
+      case "Enter":
+        if (gameState !== "playing") startGame();
+        break;
+    }
+  });
+
+  // ---- Scale to fit screen --------------------------------------------------
+  function fit() {
+    const wrap = document.getElementById("wrap");
+    const controls = document.getElementById("touchControls");
+    const controlsHeight = controls ? controls.offsetHeight : 0;
+    const layoutWidth = 300 + 200;
+    const layoutHeight = 640 + controlsHeight;
+    const scale = Math.min(
+      window.innerWidth / layoutWidth,
+      window.innerHeight / layoutHeight
+    );
+    wrap.style.transform = "scale(" + Math.max(0.4, scale) + ")";
+  }
+  window.addEventListener("resize", fit);
+  window.addEventListener("orientationchange", () => setTimeout(fit, 200));
+
+  // ---- Init -----------------------------------------------------------------
+  grid = makeGrid();
+  updateHud();
+  render();
+  fit();
+
+  // Show touch controls on touch-enabled devices
+  if (isTouchDevice()) {
+    document.getElementById("touchControls").style.display = "block";
+    setupTouchControls();
+    fit();
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
