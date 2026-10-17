@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dragonflight - 용의 격투</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-row"><span class="hud-label">STAGE</span><span id="stageDisplay">1</span></div>
+    <div class="hud-row"><span class="hud-label">점수</span><span id="scoreDisplay">0</span></div>
+    <div class="hud-row"><span class="hud-label">거리</span><span id="distanceDisplay">0m</span></div>
+    <div class="hud-row"><span class="hud-label">치수</span><span id="killsDisplay">0</span></div>
+    <div class="hud-row"><span class="hud-label">코인</span><span id="coinDisplay">0</span></div>
+    <div class="hud-row"><span class="hud-label">CREDIT</span><span id="creditDisplay">1</span></div>
+    <div id="bossBarContainer" class="hidden">
+      <div id="bossBar"><div id="bossBarFill"></div><span id="bossName">BOSS</span></div>
+    </div>
+    <div id="powerupIndicators"></div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="startScreen" class="screen">
+    <h1 class="game-title">DRAGONFLIGHT</h1>
+    <p class="subtitle">용의 격투</p>
+    <div class="credit-box">남은 크레딧 <span id="startCreditDisplay">1</span></div>
+    <button id="startButton" class="btn">게임 시작</button>
+    <div class="controls-hint">
+      <p><strong>조작법</strong></p>
+      <p>PC: ← 또는 A / D 또는 마우스 / 모바일: 손가락으로 좌우 이동</p>
+      <p>공격은 자동입니다</p>
+      <p><strong>크레딧 주입</strong></p>
+      <p>PC: 'I' 키 / 모바일: 화면 상단 중앙 탭 → 코인 획득</p>
+      <p>코인은 게임 중 잡으면 쌓입니다</p>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="screen hidden">
+    <h2 class="game-over-title">GAME OVER</h2>
+    <div class="final-stats">
+      <p>점수 <span id="finalScore">0</span></p>
+      <p>이동 거리 <span id="finalDistance">0m</span></p>
+      <p>처치 수 <span id="finalKills">0</span></p>
+      <p>수집 코인 <span id="finalCoins">0</span></p>
+    </div>
+    <button id="continueButton" class="btn">계속하기 (크레딧 1)</button>
+    <div class="countdown" id="countdownText">10</div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
