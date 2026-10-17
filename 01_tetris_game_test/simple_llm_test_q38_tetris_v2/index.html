@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>TETRIS - Atari 1988</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000000;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #game {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: #000000;
+  }
+  #hint {
+    position: fixed;
+    left: 8px;
+    bottom: 6px;
+    color: #333333;
+    font-size: 11px;
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+  #touch {
+    position: fixed;
+    inset: 0;
+    display: none;
+    pointer-events: none;
+  }
+  #touch .tbtn {
+    position: absolute;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    width: 62px;
+    height: 62px;
+    border: 2px solid #888888;
+    border-radius: 12px;
+    background: rgba(20, 20, 20, 0.6);
+    color: #FFFFFF;
+    font-size: 26px;
+    line-height: 1;
+    text-align: center;
+    pointer-events: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #touch .tbtn:active,
+  #touch .tbtn.held {
+    background: rgba(0, 255, 0, 0.25);
+    border-color: #00FF00;
+  }
+  #touch .tbtn small {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: #AAAAAA;
+    margin-top: 2px;
+  }
+  #tLeft  { left: calc(16px + env(safe-area-inset-left, 0px)); }
+  #tRight { left: calc(86px + env(safe-area-inset-left, 0px)); }
+  #tDown  { left: 50%; transform: translateX(-50%); }
+  #tRotate{ right: calc(16px + env(safe-area-inset-right, 0px)); }
+  @media (hover: none) and (pointer: coarse) {
+    #touch { display: block; }
+  }
+  @media (max-height: 520px) and (orientation: landscape) {
+    #touch .tbtn { width: 50px; height: 50px; font-size: 20px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+    #tRight { left: calc(74px + env(safe-area-inset-left, 0px)); }
+  }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="game" width="520" height="460"></canvas></div>
+<div id="hint">Enter: Start &nbsp; Arrows: Move/Rotate &nbsp; Down: Soft Drop</div>
+<div id="touch">
+  <div class="tbtn" id="tLeft">◀<small>LEFT</small></div>
+  <div class="tbtn" id="tRight">▶<small>RIGHT</small></div>
+  <div class="tbtn" id="tDown">▼<small>DROP</small></div>
+  <div class="tbtn" id="tRotate">⟳<small>ROTATE</small></div>
+</div>
+<script>
+"use strict";
+(function () {
+  // ---------------------------------------------------------------------------
+  // Canvas / scaling
+  // ---------------------------------------------------------------------------
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  var W = canvas.width, H = canvas.height;
+
+  function fit() {
+    var scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+    scale = Math.max(0.3, Math.floor(scale * 100) / 100);
+    canvas.style.width = (W * scale) + 'px';
+    canvas.style.height = (H * scale) + 'px';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  // ---------------------------------------------------------------------------
+  // Board geometry
+  // ---------------------------------------------------------------------------
+  var COLS = 10;
+  var ROWS = 20;
+  var CELL = 20;
+  var OX = 80;                 // board left
+  var OY = 30;                 // board top
+  var BOARD_W = COLS * CELL;   // 200
+  var BOARD_H = ROWS * CELL;   // 400
+  var PANEL_X = OX + BOARD_W + 24; // 304
+  var PANEL_W = W - PANEL_X - 16;
+
+  // ---------------------------------------------------------------------------
+  // Colors: Atari 20-color palette (levels 1-9) then 256-color (level 10+)
+  // Index = (level-1)*20 + i, wrapping for higher levels.
+  // ---------------------------------------------------------------------------
+  var PALETTE = [
+    '#FF0000','#FF0000','#FF8C00','#FF8C00','#FFFF00','#FFFF00',
+    '#00FF00','#00FF00','#00FFFF','#00FFFF','#0000FF','#0000FF',
+    '#FF00FF','#FF00FF','#008080','#008080','#808080','#808080',
+    '#C0C0C0','#C0C0C0'
+  ];
+  var PALETTE256 = [
+    '#FF0000','#FF4000','#FF8000','#FFC000','#FFFF00','#C0FF00',
+    '#80FF00','#40FF00','#00FF00','#00FF40','#00FF80','#00FFC0',
+    '#00FFFF','#00C0FF','#0080FF','#0040FF','#0000FF','#4000FF',
+    '#8000FF','#C000FF','#FF00FF','#FF00C0','#FF0080','#FF0040',
+    '#FF0000','#FF4040','#FF8080','#FFC0C0','#FFC0FF','#C0C0FF'
+  ];
+
+  var level = 1, score = 0, lines = 0, hearts = 3;
+  var levelColorCount = 20;
+
+  function cellColor(i) {
+    var pal = (level < 10) ? PALETTE : PALETTE256;
+    var idx = ((level - 1) * levelColorCount) % pal.length;
+    return pal[(idx + i) % pal.length];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pieces (7 tetrominoes), each with rotation states as [r,c] offsets
+  // ---------------------------------------------------------------------------
+  var SHAPES = {
+    I: [[0,0],[0,1],[0,2],[0,3]],
+    J: [[0,0],[1,0],[1,1],[1,2]],
+    L: [[0,2],[1,0],[1,1],[1,2]],
+    O: [[0,0],[0,1],[1,0],[1,1]],
+    S: [[0,1],[0,2],[1,0],[1,1]],
+    T: [[0,1],[1,0],[1,1],[1,2]],
+    Z: [[0,0],[0,1],[1,1],[1,2]]
+  };
+
+  function rotateCW(cells) {
+    // rotate about center of the shape bounding box
+    var minR = 99, maxR = -1, minC = 99, maxC = -1;
+    for (var i = 0; i < cells.length; i++) {
+      var r = cells[i][0], c = cells[i][1];
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (c < minC) minC = c; if (c > maxC) maxC = c;
+    }
+    var h = maxR - minR + 1;
+    var out = [];
+    for (var k = 0; k < cells.length; k++) {
+      var rr = cells[k][0] - minR, cc = cells[k][1] - minC;
+      // new (r,c) = (c, h-1-rr)
+      out.push([cc + minR, (h - 1 - rr) + minC]);
+    }
+    return out;
+  }
+
+  function rotations(shapeName) {
+    var base = SHAPES[shapeName].map(function (p) { return [p[0], p[1]]; });
+    var rots = [base];
+    var cur = base;
+    for (var i = 0; i < 3; i++) { cur = rotateCW(cur); rots.push(cur); }
+    return rots;
+  }
+
+  var SHAPE_NAMES = ['I','J','L','O','S','T','Z'];
+  var ROT = {};
+  for (var s = 0; s < SHAPE_NAMES.length; s++) ROT[SHAPE_NAMES[s]] = rotations(SHAPE_NAMES[s]);
+
+  // ---------------------------------------------------------------------------
+  // Game state
+  // ---------------------------------------------------------------------------
+  var grid;            // ROWS x COLS of 0 or colorIndex(1..20)
+  var piece = null;    // { shape, rot, row, col, colorIndex }
+  var nextShape = null;
+  var state = 'TITLE'; // TITLE, PLAY, LINECLEAR, GAMEOVER
+  var clearTimer = 0;
+  var clearingRows = [];
+  var spawnRow = 0;
+  var dropInterval = 800; // ms
+  var lastDrop = 0;
+  var now = 0;
+
+  function resetGrid() {
+    grid = [];
+    for (var r = 0; r < ROWS; r++) {
+      var row = [];
+      for (var c = 0; c < COLS; c++) row.push(0);
+      grid.push(row);
+    }
+  }
+
+  function topFilledRow() {
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) if (grid[r][c]) return r;
+    }
+    return -1;
+  }
+
+  function levelForLines(l) {
+    return Math.min(10, 1 + Math.floor(l / 10));
+  }
+
+  function updateDropInterval() {
+    // speed per level (Atari-style curve)
+    var speeds = [800,650,500,400,300,200,150,100,80,60];
+    dropInterval = speeds[Math.min(9, level - 1)];
+  }
+
+  function spawnPiece(shapeName) {
+    var colorIndex = (Math.floor(Math.random() * levelColorCount)) + 1;
+    var shape = shapeName || SHAPE_NAMES[Math.floor(Math.random() * SHAPE_NAMES.length)];
+    var cells = ROT[shape][0];
+    // center horizontally
+    var minC = 99, maxC = -1;
+    for (var i = 0; i < cells.length; i++) {
+      if (cells[i][1] < minC) minC = cells[i][1];
+      if (cells[i][1] > maxC) maxC = cells[i][1];
+    }
+    var w = maxC - minC + 1;
+    var col = Math.floor((COLS - w) / 2) - minC;
+    // spawn near top; find a clear row
+    var row = 0;
+    piece = { shape: shape, rot: 0, row: row, col: col, colorIndex: colorIndex };
+    if (collides(cells, row, col)) {
+      // try one row up
+      row = -1;
+      piece.row = row;
+      if (collides(cells, row, col)) {
+        gameOver();
+        return;
+      }
+    }
+  }
+
+  function cellsOf(p) {
+    var base = ROT[p.shape][p.rot];
+    var out = [];
+    for (var i = 0; i < base.length; i++) {
+      out.push([base[i][0] + p.row, base[i][1] + p.col]);
+    }
+    return out;
+  }
+
+  function collides(cells, row, col) {
+    for (var i = 0; i < cells.length; i++) {
+      var r = cells[i][0] + row, c = cells[i][1] + col;
+      if (c < 0 || c >= COLS || r >= ROWS) return true;
+      if (r >= 0 && grid[r][c]) return true;
+    }
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lock & line clear
+  // ---------------------------------------------------------------------------
+  function lockPiece() {
+    var cells = cellsOf(piece);
+    for (var i = 0; i < cells.length; i++) {
+      var r = cells[i][0], c = cells[i][1];
+      if (r < 0) { gameOver(); return; }
+      grid[r][c] = piece.colorIndex;
+    }
+    piece = null;
+    // detect full rows
+    clearingRows = [];
+    for (var r = 0; r < ROWS; r++) {
+      var full = true;
+      for (var c = 0; c < COLS; c++) if (!grid[r][c]) { full = false; break; }
+      if (full) clearingRows.push(r);
+    }
+    if (clearingRows.length > 0) {
+      state = 'LINECLEAR';
+      clearTimer = 0;
+    } else {
+      afterClear();
+    }
+  }
+
+  function applyLineClear() {
+    var n = clearingRows.length;
+    for (var i = 0; i < n; i++) {
+      var r = clearingRows[i];
+      // remove row r and shift rows above down
+      grid.splice(r, 1);
+      var newRow = [];
+      for (var c = 0; c < COLS; c++) newRow.push(0);
+      grid.unshift(newRow);
+    }
+    // Atari (1988) scoring: base points per lines cleared,
+    // multiplied by (level + 1); at level 10+ the multiplier becomes 10.
+    var base = [0, 40, 100, 300, 1200][n];
+    var mult = (level >= 10) ? 10 : (level + 1);
+    score += base * mult;
+    lines += n;
+    level = levelForLines(lines);
+    levelColorCount = (level >= 10) ? 256 : 20;
+    updateDropInterval();
+    clearingRows = [];
+  }
+
+  function afterClear() {
+    // respawn if top is too high
+    var top = topFilledRow();
+    if (top >= 0 && top <= 3) {
+      hearts -= 1;
+      if (hearts <= 0) { gameOver(); return; }
+    }
+    spawnPiece(nextShape);
+    nextShape = SHAPE_NAMES[Math.floor(Math.random() * SHAPE_NAMES.length)];
+  }
+
+  function gameOver() {
+    state = 'GAMEOVER';
+    piece = null;
+  }
+
+  function startGame() {
+    resetGrid();
+    level = 1; score = 0; lines = 0; hearts = 3;
+    levelColorCount = 20;
+    updateDropInterval();
+    nextShape = SHAPE_NAMES[Math.floor(Math.random() * SHAPE_NAMES.length)];
+    spawnPiece(null);
+    state = 'PLAY';
+    lastDrop = now;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Movement
+  // ---------------------------------------------------------------------------
+  function tryMove(dr, dc) {
+    if (!piece) return false;
+    var cells = cellsOf(piece);
+    if (collides(cells, piece.row + dr, piece.col + dc)) return false;
+    piece.row += dr;
+    piece.col += dc;
+    return true;
+  }
+
+  function tryRotate(dir) {
+    if (!piece) return false;
+    if (piece.shape === 'O') return false;
+    var newRot = (piece.rot + dir + 4) % 4;
+    var cells = ROT[piece.shape][newRot];
+    // simple wall kick: try offsets
+    var kicks = [0, -1, 1, -2, 2];
+    for (var k = 0; k < kicks.length; k++) {
+      if (!collides(cells, piece.row, piece.col + kicks[k])) {
+        piece.rot = newRot;
+        piece.col += kicks[k];
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function softDrop() {
+    if (!piece) return;
+    if (tryMove(1, 0)) {
+      score += 1;
+      lastDrop = now;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Update loop
+  // ---------------------------------------------------------------------------
+  function update(dt) {
+    if (state === 'PLAY') {
+      if (piece) {
+        if (now - lastDrop >= dropInterval) {
+          if (!tryMove(1, 0)) lockPiece();
+          lastDrop = now;
+        }
+      }
+    } else if (state === 'LINECLEAR') {
+      clearTimer += dt;
+      if (clearTimer > 180) {
+        applyLineClear();
+        state = 'PLAY';
+        afterClear();
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------------
+  function drawBlock(x, y, color, flash) {
+    var px = OX + x * CELL, py = OY + y * CELL;
+    if (flash) {
+      // white flash for line clear
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(px, py, CELL, CELL);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
+      return;
+    }
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, CELL, CELL);
+    // bevel: light top-left, dark bottom-right
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(px, py, CELL, 2);
+    ctx.fillRect(px, py, 2, CELL);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(px, py + CELL - 2, CELL, 2);
+    ctx.fillRect(px + CELL - 2, py, 2, CELL);
+    // inner border
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px + 0.5, py + 0.5, CELL - 1, CELL - 1);
+  }
+
+  function drawBoardFrame() {
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(OX - 2, OY - 2, BOARD_W + 4, BOARD_H + 4);
+    // subtle grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    for (var c = 1; c < COLS; c++) {
+      ctx.beginPath();
+      ctx.moveTo(OX + c * CELL + 0.5, OY);
+      ctx.lineTo(OX + c * CELL + 0.5, OY + BOARD_H);
+      ctx.stroke();
+    }
+    for (var r = 1; r < ROWS; r++) {
+      ctx.beginPath();
+      ctx.moveTo(OX, OY + r * CELL + 0.5);
+      ctx.lineTo(OX + BOARD_W, OY + r * CELL + 0.5);
+      ctx.stroke();
+    }
+  }
+
+  function drawGrid() {
+    for (var r = 0; r < ROWS; r++) {
+      var isClearing = clearingRows.indexOf(r) !== -1 && state === 'LINECLEAR';
+      for (var c = 0; c < COLS; c++) {
+        var v = grid[r][c];
+        if (v) drawBlock(c, r, cellColor(v - 1), isClearing);
+      }
+    }
+  }
+
+  function drawPiece() {
+    if (!piece) return;
+    var cells = cellsOf(piece);
+    var color = cellColor(piece.colorIndex - 1);
+    for (var i = 0; i < cells.length; i++) {
+      var r = cells[i][0], c = cells[i][1];
+      if (r < 0) continue;
+      drawBlock(c, r, color, false);
+    }
+  }
+
+  function drawGhost() {
+    if (!piece) return;
+    // Absolute base cells for the current piece position.
+    var base = cellsOf(piece);
+    var drop = 0;
+    // How far down (in rows) can we shift the whole piece?
+    while (true) {
+      if (collides(base, drop + 1, 0)) break;
+      drop++;
+    }
+    var color = cellColor(piece.colorIndex - 1);
+    ctx.globalAlpha = 0.22;
+    for (var j = 0; j < base.length; j++) {
+      var r = base[j][0] + drop, c = base[j][1];
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      drawBlock(c, r, color, false);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Atari-style pixel text
+  function drawText(text, x, y, size, color, align) {
+    ctx.fillStyle = color || '#FFFFFF';
+    ctx.font = 'bold ' + size + 'px "Courier New", monospace';
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(text, x, y);
+  }
+
+  function drawHearts(x, y) {
+    for (var i = 0; i < 3; i++) {
+      var hx = x + i * 34, hy = y;
+      var on = i < hearts;
+      drawHeart(hx, hy, on ? '#FF0000' : '#330000');
+    }
+  }
+
+  function drawHeart(x, y, color) {
+    // 12x12 pixel heart
+    var map = [
+      ".XX..XX.",
+      "XXXXXXXX",
+      "XXXXXXXX",
+      "XXXXXXXX",
+      ".XXXXXX.",
+      "..XXXX..",
+      "...XX..."
+    ];
+    var s = 3;
+    ctx.fillStyle = color;
+    for (var r = 0; r < map.length; r++) {
+      for (var c = 0; c < map[r].length; c++) {
+        if (map[r][c] === 'X') ctx.fillRect(x + c * s, y + r * s, s, s);
+      }
+    }
+  }
+
+  function drawPanel() {
+    // frame
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(PANEL_X - 2, 18, PANEL_W + 4, 340);
+
+    var x = PANEL_X + 14;
+    drawText('NEXT', x, 28, 16, '#FFFFFF', 'left');
+    // next piece box
+    var nbx = x, nby = 48, nbs = 14;
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(nbx - 4, nby - 4, 4 * nbs + 8, 2 * nbs + 8);
+    if (nextShape) {
+      var cells = ROT[nextShape][0];
+      var minR = 99, maxR = -1, minC = 99, maxC = -1;
+      for (var i = 0; i < cells.length; i++) {
+        var r = cells[i][0], c = cells[i][1];
+        if (r < minR) minR = r; if (r > maxR) maxR = r;
+        if (c < minC) minC = c; if (c > maxC) maxC = c;
+      }
+      var w = maxC - minC + 1, h = maxR - minR + 1;
+      var offx = (4 * nbs) / 2 - (w * nbs) / 2 - minC * nbs;
+      var offy = (2 * nbs) / 2 - (h * nbs) / 2 - minR * nbs;
+      ctx.fillStyle = cellColor(0);
+      for (var k = 0; k < cells.length; k++) {
+        ctx.fillRect(nbx + offx + cells[k][1] * nbs, nby + offy + cells[k][0] * nbs, nbs, nbs);
+      }
+    }
+
+    var ly = 110;
+    drawText('LEVEL', x, ly, 14, '#888888');
+    drawText(String(level), x, ly + 20, 26, '#FFFFFF');
+
+    ly += 70;
+    drawText('SCORE', x, ly, 14, '#888888');
+    drawText(String(score), x, ly + 20, 22, '#00FF00');
+
+    ly += 64;
+    drawText('LINES', x, ly, 14, '#888888');
+    drawText(String(lines), x, ly + 20, 22, '#00FFFF');
+
+    ly += 64;
+    drawText('LIVES', x, ly, 14, '#888888');
+    drawHearts(x, ly + 22);
+  }
+
+  function drawTitle() {
+    drawText('TETRIS', W / 2, 70, 64, '#00FF00', 'center');
+    drawText('ATARI  1988', W / 2, 150, 20, '#FF00FF', 'center');
+    drawText('PRESS ENTER', W / 2, 240, 22, '#FFFFFF', 'center');
+    drawText('TO START', W / 2, 270, 22, '#FFFFFF', 'center');
+    // animated preview blocks
+    var t = Math.floor(now / 300) % 20;
+    for (var i = 0; i < 10; i++) {
+      var col = cellColor((t + i) % 20);
+      ctx.fillStyle = col;
+      ctx.fillRect(110 + i * 18, 330, 16, 16);
+    }
+  }
+
+  function drawGameOver() {
+    // darken
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    drawText('GAME OVER', W / 2, 160, 44, '#FF0000', 'center');
+    drawText('SCORE  ' + score, W / 2, 240, 24, '#FFFFFF', 'center');
+    drawText('LINES  ' + lines, W / 2, 275, 20, '#FFFFFF', 'center');
+    drawText('PRESS ENTER TO RESTART', W / 2, 340, 18, '#00FF00', 'center');
+  }
+
+  function render() {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, W, H);
+
+    if (state === 'TITLE') {
+      drawTitle();
+      return;
+    }
+
+    drawBoardFrame();
+    drawGrid();
+    if (state === 'PLAY' && piece) {
+      drawGhost();
+      drawPiece();
+    }
+    drawPanel();
+
+    if (state === 'GAMEOVER') drawGameOver();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Input
+  // ---------------------------------------------------------------------------
+  var keys = {};
+  var moveLock = 0;
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].indexOf(k) !== -1) e.preventDefault();
+
+    if (state === 'TITLE' || state === 'GAMEOVER') {
+      if (k === 'Enter') startGame();
+      return;
+    }
+    if (state !== 'PLAY') return;
+    if (keys[k]) return; // ignore repeat
+    keys[k] = true;
+
+    if (k === 'ArrowLeft') { tryMove(0, -1); lastDrop = now; }
+    else if (k === 'ArrowRight') { tryMove(0, 1); lastDrop = now; }
+    else if (k === 'ArrowUp') { tryRotate(1); }
+    else if (k === 'ArrowDown') { softDrop(); }
+  });
+
+  document.addEventListener('keyup', function (e) {
+    keys[e.key] = false;
+  });
+
+  // ---------------------------------------------------------------------------
+  // Touch controls (mobile)
+  // ---------------------------------------------------------------------------
+  var touchZone = document.getElementById('touch');
+  var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+  function touchStartAction() {
+    if (state === 'TITLE' || state === 'GAMEOVER') startGame();
+  }
+
+  touchZone.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    isTouchDevice = true;
+    if (state === 'TITLE' || state === 'GAMEOVER') {
+      startGame();
+      return;
+    }
+  }, { passive: false });
+
+  function bindTouchButton(id, onDown, onUp) {
+    var el = document.getElementById(id);
+    var active = false;
+
+    function press(ev) {
+      if (ev.cancelable) ev.preventDefault();
+      if (state === 'TITLE' || state === 'GAMEOVER') { startGame(); return; }
+      if (active) return;
+      active = true;
+      el.classList.add('held');
+      onDown();
+    }
+    function release(ev) {
+      if (ev && ev.cancelable) ev.preventDefault();
+      if (!active) return;
+      active = false;
+      el.classList.remove('held');
+      if (onUp) onUp();
+    }
+
+    el.addEventListener('touchstart', press, { passive: false });
+    el.addEventListener('touchend', release, { passive: false });
+    el.addEventListener('touchcancel', release, { passive: false });
+    el.addEventListener('mousedown', function (ev) { ev.preventDefault(); press(ev); });
+    el.addEventListener('mouseup', function (ev) { release(ev); });
+    el.addEventListener('mouseleave', function (ev) { release(ev); });
+  }
+
+  var downTimer = null, downRepeat = null;
+
+  function softDropStart() {
+    if (state !== 'PLAY') return;
+    softDrop();
+    softDropStop();
+    downTimer = setInterval(function () { if (state === 'PLAY') softDrop(); }, 70);
+  }
+
+  function softDropStop() {
+    if (downTimer) { clearInterval(downTimer); downTimer = null; }
+  }
+
+  bindTouchButton('tLeft', function () { tryMove(0, -1); lastDrop = now; });
+  bindTouchButton('tRight', function () { tryMove(0, 1); lastDrop = now; });
+  bindTouchButton('tRotate', function () { tryRotate(1); });
+  bindTouchButton('tDown', softDropStart, softDropStop);
+
+  window.addEventListener('touchend', function () { softDropStop(); }, { passive: true });
+
+  // ---------------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------------
+  var lastTime = 0;
+  function loop(ts) {
+    now = ts;
+    var dt = ts - lastTime;
+    lastTime = ts;
+    if (dt > 200) dt = 200;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  resetGrid();
+  nextShape = SHAPE_NAMES[Math.floor(Math.random() * SHAPE_NAMES.length)];
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
