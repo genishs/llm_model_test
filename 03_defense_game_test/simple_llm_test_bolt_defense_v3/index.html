@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Bolt Defense</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; touch-action: none; }
+  canvas { background: #1e293b; box-shadow: 0 0 20px rgba(0,0,0,0.5); border: 2px solid #334155; }
+  .ui { position: absolute; top: 20px; left: 20px; pointer-events: none; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+  .hud { font-size: 20px; font-weight: bold; }
+  .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15,23,42,0.9); backdrop-filter: blur(4px); }
+  .overlay.hidden { display: none; }
+  h1 { font-size: 48px; margin-bottom: 16px; color: #fbbf24; text-shadow: 0 0 12px #fbbf24; }
+  p { font-size: 18px; margin-bottom: 24px; max-width: 400px; text-align: center; }
+  button { padding: 12px 28px; font-size: 18px; font-weight: bold; background: #fbbf24; color: #1e293b; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; }
+  button:active { transform: scale(0.95); }
+  .tip { margin-top: 24px; font-size: 14px; color: #94a3b8; }
+  .touch-tip { margin-top: 32px; font-size: 14px; color: #3b82f6; font-weight: bold; }
+  .boss-badge { font-size: 16px; font-weight: bold; color: #ef4444; margin-bottom: 8px; text-shadow: 0 0 8px #ef4444; }
+</style>
+</head>
+<body>
+<div class="ui">
+  <div class="hud">Wave: <span id="wave">1</span> &nbsp;|&nbsp; Score: <span id="score">0</span></div>
+  <div class="hud" id="bossLabel">일반 웨이브</div>
+  <div class="hud">Enemies: <span id="enemyCount">0</span>/<span id="enemyTotal">0</span></div>
+</div>
+<canvas id="game" width="800" height="600"></canvas>
+<div class="overlay" id="overlay">
+  <h1>Bolt Defense</h1>
+  <p>공중에 떠오르는 적을 화살로 격파하세요!<br>모든 웨이브를 클리어하면 승리합니다.</p>
+  <button id="startBtn">시작하기</button>
+  <div class="tip">마우스 조준 또는 스페이스바: 화살 발사<br>마우스 방향에 따라 발사 각도가 결정됩니다</div>
+  <div class="touch-tip">터치: 화살 발사 (터치 위치 방향으로 발사)</div>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const waveEl = document.getElementById('wave');
+const scoreEl = document.getElementById('score');
+const enemyCountEl = document.getElementById('enemyCount');
+const enemyTotalEl = document.getElementById('enemyTotal');
+const overlay = document.getElementById('overlay');
+const startBtn = document.getElementById('startBtn');
+const bossLabel = document.getElementById('bossLabel');
+
+let running = false;
+let wave = 1;
+let score = 0;
+let arrows = [];
+let enemies = [];
+let particles = [];
+let lastShot = 0;
+let shotDelay = 400;
+
+const W = canvas.width;
+const H = canvas.height;
+const BASE_X = W / 2;
+const BASE_Y = H - 40;
+
+const colors = ['#fbbf24', '#3b82f6', '#ef4444', '#10b981', '#a855f7'];
+
+function isBossWave(w) {
+  return w > 0 && w % 4 === 0;
+}
+
+function spawnEnemies() {
+  enemies = [];
+  const boss = isBossWave(wave);
+  const count = boss ? 1 : 5 + wave * 2;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.random() * Math.PI * 2);
+    const r = 80 + Math.random() * 200;
+    const x = BASE_X + Math.cos(angle) * r;
+    const y = BASE_Y - Math.sin(angle) * r - 60;
+    if (boss) {
+      enemies.push({
+        x, y, vx: (BASE_X - x) * 0.015, vy: (BASE_Y - y) * 0.015,
+        r: 22 + Math.random() * 10,
+        hp: 20 + wave * 5, maxHp: 20 + wave * 5,
+        color: '#ef4444', boss: true
+      });
+    } else {
+      enemies.push({
+        x, y, vx: (BASE_X - x) * 0.02, vy: (BASE_Y - y) * 0.02,
+        r: 12 + Math.random() * 8,
+        hp: 1 + Math.floor(wave / 2), maxHp: 1 + Math.floor(wave / 2),
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    }
+  }
+  enemyTotalEl.textContent = enemies.length;
+  enemyCountEl.textContent = enemies.length;
+  bossLabel.textContent = boss ? '💀 BOSS WAVE' : '일반 웨이브';
+  bossLabel.style.color = boss ? '#ef4444' : '#e2e8f0';
+}
+
+function spawnParticle(x, y, color) {
+  particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 20, color });
+}
+
+function fire(tx, ty) {
+  const now = Date.now();
+  if (now - lastShot < shotDelay) return;
+  lastShot = now;
+  const dx = tx - BASE_X;
+  const dy = ty - BASE_Y;
+  const len = Math.hypot(dx, dy) || 1;
+  const angle = Math.atan2(dy, dx);
+  arrows.push({ x: BASE_X, y: BASE_Y, vx: Math.cos(angle) * 12, vy: Math.sin(angle) * 12, angle, life: 60 });
+}
+
+function update() {
+  if (!running) return;
+  const now = Date.now();
+  if (now - lastShot > 3000) shotDelay = Math.max(150, 400 - wave * 30);
+
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i];
+    a.x += a.vx; a.y += a.vy;
+    a.life--;
+    if (a.life <= 0 || a.x < 0 || a.x > W || a.y < 0 || a.y > H) { arrows.splice(i, 1); continue; }
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      if (dist(a.x, a.y, e.x, e.y) < e.r + 5) {
+        e.hp--;
+        spawnParticle(e.x, e.y, e.color);
+        if (e.hp <= 0) {
+          enemies.splice(j, 1);
+          score += 10 * wave;
+          scoreEl.textContent = score;
+        }
+        arrows.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.x += e.vx; e.y += e.vy;
+    if (e.x < 0 || e.x > W || e.y < 0 || e.y > H) {
+      enemies.splice(i, 1);
+      continue;
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  if (enemies.length === 0) {
+    wave++;
+    waveEl.textContent = wave;
+    scoreEl.textContent = score;
+    if (wave > 12) {
+      running = false;
+      overlay.querySelector('h1').textContent = 'Victory!';
+      overlay.querySelector('p').textContent = `모든 웨이브를 클리어했습니다!\n점수: ${score}`;
+      overlay.querySelector('button').textContent = '다시 시작';
+      overlay.classList.remove('hidden');
+      startBtn.onclick = () => { wave = 1; score = 0; waveEl.textContent = '1'; scoreEl.textContent = '0'; running = true; overlay.classList.add('hidden'); spawnEnemies(); };
+      return;
+    }
+    setTimeout(() => { running = true; spawnEnemies(); }, 1500);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.beginPath(); ctx.arc(BASE_X, BASE_Y, 20, 0, Math.PI * 2); ctx.fillStyle = '#fbbf24'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(BASE_X, BASE_Y); ctx.lineTo(BASE_X, BASE_Y - 40); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.stroke();
+
+  for (const a of arrows) {
+    ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.angle); ctx.fillStyle = '#fbbf24'; ctx.fillRect(-8, -2, 16, 4); ctx.restore();
+  }
+  for (const e of enemies) {
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2); ctx.fillStyle = e.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.stroke();
+    const pct = e.hp / e.maxHp;
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(e.x - 20, e.y - e.r - 10, 40, 6);
+    ctx.fillStyle = '#ef4444'; ctx.fillRect(e.x - 20, e.y - e.r - 10, 40 * pct, 6);
+  }
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 20; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+let mouseX = W / 2, mouseY = H / 2;
+window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+window.addEventListener('mousedown', e => { fire(e.clientX, e.clientY); });
+window.addEventListener('keydown', e => { if (e.code === 'Space') fire(mouseX, mouseY); });
+window.addEventListener('touchstart', e => {
+  const t = e.changedTouches[0];
+  fire(t.clientX, t.clientY);
+  e.preventDefault();
+}, { passive: false });
+
+startBtn.onclick = () => {
+  running = true;
+  overlay.classList.add('hidden');
+  spawnEnemies();
+  loop();
+};
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

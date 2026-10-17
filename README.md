@@ -154,6 +154,7 @@
 - [simple_llm_test_aw_defense_v2](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_aw_defense_v2/index.html)
 - [simple_llm_test_bolt_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_bolt_defense_v1/index.html)
 - [simple_llm_test_bolt_defense_v2](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_bolt_defense_v2/index.html)
+- [simple_llm_test_bolt_defense_v3](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_bolt_defense_v3/index.html)
 - simple_llm_test_c1_defense_v1 — 파일 없음
 - simple_llm_test_c1_defense_v2 — 파일 없음
 - simple_llm_test_c7_defense_v1 — 파일 없음
