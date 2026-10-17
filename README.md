@@ -150,3 +150,4 @@
 
 ### 03_defense_game_test
 
+- [simple_llm_test_q36_defense_v1](https://genishs.github.io/llm_model_test/03_defense_game_test/simple_llm_test_q36_defense_v1/index.html)
