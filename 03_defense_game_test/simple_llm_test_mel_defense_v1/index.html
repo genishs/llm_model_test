@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defense Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #000;
+            overflow: hidden;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background: #111;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            gap: 20px;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Health: <span id="health">100</span></div>
+        <div>Ammo: <span id="ammo">30</span></div>
+        <div>Score: <span id="score">0</span></div>
+    </div>
+    <canvas id="game"></canvas>
+    <div id="controls">
+        <p>Click to shoot | Arrow keys to move</p>
+    </div>
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 800;
+        canvas.height = 600;
+        
+        let player = { x: 400, y: 500, width: 40, height: 40, speed: 5 };
+        let bullets = [];
+        let enemies = [];
+        let health = 100;
+        let score = 0;
+        let gameRunning = true;
+        
+        class Bullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.speed = 10;
+            }
+            update() {
+                this.y -= this.speed;
+            }
+            draw() {
+                ctx.fillStyle = '#0f0';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        class Enemy {
+            constructor(x) {
+                this.x = x;
+                this.y = 50;
+                this.width = 30;
+                this.height = 30;
+                this.speed = 1 + Math.random() * 2;
+                this.health = 2;
+            }
+            update() {
+                this.y += this.speed;
+                if (this.y > canvas.height) {
+                    enemies.splice(enemies.indexOf(this), 1);
+                    health -= 10;
+                    if (health < 0) health = 0;
+                }
+            }
+            draw() {
+                ctx.fillStyle = '#f00';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+        }
+        
+        document.addEventListener('click', () => {
+            if (gameRunning) {
+                bullets.push(new Bullet(player.x + player.width / 2, player.y));
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            if (e.key === 'ArrowLeft') player.x -= player.speed;
+            if (e.key === 'ArrowRight') player.x += player.speed;
+            if (e.key === 'ArrowUp') player.y -= player.speed;
+            if (e.key === 'ArrowDown') player.y += player.speed;
+            
+            // Keep player in bounds
+            player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+        });
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Update bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].update();
+                if (bullets[i].y < 0) {
+                    bullets.splice(bullets[i], 1);
+                }
+            }
+            
+            // Update enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].update();
+                
+                // Check collision bullets-enemy
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    const b = bullets[j];
+                    const e = enemies[i];
+                    if (b.x > e.x && b.x < e.x + e.width &&
+                        b.y > e.y && b.y < e.y + e.height) {
+                        e.health--;
+                        bullets.splice(j, 1);
+                        if (e.health <= 0) {
+                            enemies.splice(i, 1);
+                            score += 10;
+                        }
+                    }
+                }
+            }
+            
+            // Spawn enemies
+            if (Math.random() < 0.02) {
+                enemies.push(new Enemy(Math.random() * (canvas.width - 50)));
+            }
+            
+            // Draw bullets
+            bullets.forEach(b => b.draw());
+            
+            // Draw enemies
+            enemies.forEach(e => e.draw());
+            
+            // Draw player
+            ctx.fillStyle = '#0a0';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Update UI
+            document.getElementById('health').textContent = health;
+            document.getElementById('ammo').textContent = bullets.length;
+            document.getElementById('score').textContent = score;
+            
+            if (health <= 0) {
+                gameRunning = false;
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
