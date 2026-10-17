@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TETRIS - Atari 1988</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    user-select: none;
+  }
+  #gameWrapper {
+    position: relative;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gameCanvas"></canvas>
+</div>
+<script>
+// ============================================================
+// TETRIS - Atari 1988 Arcade Style
+// ============================================================
+(function() {
+'use strict';
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- Constants ---
+const COLS = 10;
+const ROWS = 20;
+const BLOCK = 30;
+const PANEL_W = 160;
+const W = COLS * BLOCK + PANEL_W + 40;
+const H = ROWS * BLOCK + 60;
+canvas.width = W;
+canvas.height = H;
+
+// Atari colors
+const COL = {
+  I:'#00FFFF', O:'#FFFF00', T:'#A000A0',
+  S:'#00FF00', Z:'#FF0000', J:'#0070C8', L:'#FF7000'
+};
+const LT = {}, DK = {};
+(function(){
+  for(let p in COL){
+    let r=parseInt(COL[p].slice(1,3),16), g=parseInt(COL[p].slice(3,5),16), b=parseInt(COL[p].slice(5,7),16);
+    LT[p]='rgb('+Math.min(255,r+70)+','+Math.min(255,g+70)+','+Math.min(255,b+70)+')';
+    DK[p]='rgb('+Math.max(0,r-70)+','+Math.max(0,g-70)+','+Math.max(0,b-70)+')';
+  }
+})();
+
+// Piece definitions: each piece has 4 rotation states
+const SHAPES = {
+  I:[[[0,0],[1,0],[2,0],[3,0]],[[1,-1],[1,0],[1,1],[1,2]],[[0,1],[1,1],[2,1],[3,1]],[[2,-1],[2,0],[2,1],[2,2]]],
+  O:[[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[0,1],[1,1]]],
+  T:[[[0,0],[1,0],[2,0],[1,1]],[[1,-1],[1,0],[1,1],[0,0]],[[0,0],[1,0],[2,0],[1,-1]],[[1,-1],[1,0],[1,1],[2,0]]],
+  S:[[[1,0],[2,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]],[[1,0],[2,0],[0,1],[1,1]],[[0,-1],[0,0],[1,0],[1,1]]],
+  Z:[[[0,0],[1,0],[1,1],[2,1]],[[1,-1],[1,0],[2,0],[2,1]],[[0,0],[1,0],[1,1],[2,1]],[[1,-1],[1,0],[2,0],[2,1]]],
+  J:[[[0,0],[0,1],[1,1],[2,1]],[[1,0],[2,0],[1,1],[1,2]],[[0,0],[1,0],[2,0],[2,-1]],[[0,0],[0,-1],[0,1],[1,0]]],
+  L:[[[2,0],[0,1],[1,1],[2,1]],[[1,0],[1,1],[1,2],[2,2]],[[0,0],[1,0],[2,0],[0,-1]],[[0,0],[1,0],[1,-1],[1,-2]]]
+};
+
+// SRS Wall Kicks
+const WK_N = {
+  '0>1':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]], '1>0':[[0,0],[1,0],[1,-1],[0,2],[1,2]],
+  '1>2':[[0,0],[1,0],[1,-1],[0,2],[1,2]], '2>1':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
+  '2>3':[[0,0],[1,0],[1,1],[0,-2],[1,-2]], '3>2':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],
+  '3>0':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]], '0>3':[[0,0],[1,0],[1,1],[0,-2],[1,-2]]
+};
+const WK_I = {
+  '0>1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]], '1>0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
+  '1>2':[[0,0],[-1,0],[2,0],[-1,2],[2,-1]], '2>1':[[0,0],[1,0],[-2,0],[1,-2],[-2,1]],
+  '2>3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]], '3>2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
+  '3>0':[[0,0],[1,0],[-2,0],[1,-2],[-2,1]], '0>3':[[0,0],[-1,0],[2,0],[-1,2],[2,-1]]
+};
+const WK_O = {
+  '0>1':[[0,0]],'1>0':[[0,0]],'1>2':[[0,0]],'2>1':[[0,0]],
+  '2>3':[[0,0]],'3>2':[[0,0]],'3>0':[[0,0]],'0>3':[[0,0]]
+};
+
+const LINE_SCORE = [0,30,50,100,300]; // NES/Atari scoring scaled
+const SOFT_PTS = 1, HARD_PTS = 2;
+
+function getSpeed(lv){
+  // Atari-style speed table (ms per row drop)
+  const s=[800,720,630,550,470,380,300,220,150,100,83,83,83,67,67,67,50,50,50,33,20,17,17,14,14,14,11,11,11,8,8,8,5,5,5,3,3,3,3,2,2,1,1,1];
+  return s[Math.min(lv,s.length-1)];
+}
+
+// --- Game State ---
+let board=[], curPiece=null, curX=0, curY=0, curRot=0, curType='',
+    nextQueue=[], holdType=null, canHold=true,
+    score=0, level=1, lines=0,
+    state='title', // title, playing, paused, gameover
+    dropTimer=0, dropInterval=800,
+    lockTimer=0, lockDelay=500, lockActive=false,
+    lastTime=0, animLines=[], animTimer=0,
+    bag=[], lineClearFlash=0;
+
+// Input tracking
+let inputState={left:false,right:false,down:false,rotate:false,hold:false,drop:false};
+let inputTimer={left:null,right:null,down:null};
+const DAS_DELAY=170, DAS_REPEAT=50;
+
+// --- Board ---
+function createBoard(){
+  board=[];
+  for(let y=0;y<ROWS;y++){board[y]=new Array(COLS).fill(null);}
+}
+
+function valid(shape,ox,oy){
+  for(let i=0;i<shape.length;i++){
+    const x=shape[i][0]+ox, y=shape[i][1]+oy;
+    if(x<0||x>=COLS||y>=ROWS) return false;
+    if(y>=0&&board[y][x]!==null) return false;
+  }
+  return true;
+}
+
+// --- 7-Bag Randomizer ---
+function fillBag(){
+  const t=['I','O','T','S','Z','J','L'];
+  for(let i=t.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [t[i],t[j]]=[t[j],t[i]];
+  }
+  bag=t;
+}
+function nextType(){
+  if(bag.length===0) fillBag();
+  return bag.shift();
+}
+
+function spawnPiece(){
+  // Build queue if needed
+  while(nextQueue.length<3) nextQueue.push(nextType());
+  curType=nextQueue.shift();
+  while(nextQueue.length<3) nextQueue.push(nextType());
+  curRot=0;
+  curPiece=SHAPES[curType][0];
+  curX=(COLS-4)/2;
+  if(curType==='I') curX=3; else curX=Math.floor((COLS-4)/2);
+  curY=-2;
+  canHold=true;
+  lockActive=false;
+  lockTimer=0;
+
+  if(!valid(curPiece,curX,curY)){
+    state='gameover';
+  }
+}
+
+function ghostY(){
+  let gy=curY;
+  while(valid(curPiece,curX,gy+1)) gy++;
+  return gy;
+}
+
+// --- Movement ---
+function move(dx,dy){
+  if(valid(curPiece,curX+dx,curY+dy)){
+    curX+=dx; curY+=dy;
+    if(dx!==0 && lockActive){lockTimer=0;}
+    return true;
+  }
+  return false;
+}
+
+function tryRotate(dir){
+  const nr=(curRot+dir+4)%4;
+  const ns=SHAPES[curType][nr];
+  const key=curRot+'>'+nr;
+  let kicks;
+  if(curType==='I') kicks=WK_I[key]||[[0,0]];
+  else if(curType==='O') kicks=WK_O[key]||[[0,0]];
+  else kicks=WK_N[key]||[[0,0]];
+  for(let i=0;i<kicks.length;i++){
+    if(valid(ns,curX+kicks[i][0],curY-kicks[i][1])){
+      curX+=kicks[i][0]; curY-=kicks[i][1];
+      curRot=nr; curPiece=ns;
+      if(lockActive) lockTimer=0;
+      return true;
+    }
+  }
+  return false;
+}
+
+function hardDrop(){
+  let d=0;
+  while(valid(curPiece,curX,curY+1)){curY++;d++;}
+  score+=d*HARD_PTS;
+  lockPiece();
+}
+
+function holdPieceFn(){
+  if(!canHold) return;
+  canHold=false;
+  const tmp=holdType;
+  holdType=curType;
+  if(tmp===null){
+    state='gameover'; return;
+  }
+  curType=tmp; curRot=0;
+  curPiece=SHAPES[curType][0];
+  curX=(COLS-4)/2;
+  if(curType==='I') curX=3;
+  curY=-2;
+  lockActive=false; lockTimer=0;
+}
+
+// --- Lock & Lines ---
+function lockPiece(){
+  for(let i=0;i<curPiece.length;i++){
+    const x=curPiece[i][0]+curX, y=curPiece[i][1]+curY;
+    if(y>=0&&y<ROWS&&x>=COLS) continue;
+    if(y>=0&&y<ROWS&&x>=0&&x<COLS) board[y][x]=curType;
+  }
+  // Check lines
+  let cleared=[];
+  for(let y=ROWS-1;y>=0;y--){
+    let full=true;
+    for(let x=0;x<COLS;x++){if(board[y][x]===null){full=false;break;}}
+    if(full) cleared.push(y);
+  }
+  if(cleared.length>0){
+    // Flash animation
+    animLines=cleared.slice();
+    animTimer=300;
+    lineClearFlash=300;
+    // Remove lines after short delay
+    setTimeout(()=>{
+      for(let i=0;i<cleared.length;i++){
+        board.splice(cleared[i],1);
+        board.unshift(new Array(COLS).fill(null));
+      }
+      lines+=cleared.length;
+      score+=LINE_SCORE[cleared.length]*level;
+      level=Math.floor(lines/10)+1;
+      dropInterval=getSpeed(level);
+    },200);
+  }
+  if(state!=='gameover') spawnPiece();
+}
+
+// --- Input Handlers ---
+let keyDowns={};
+document.addEventListener('keydown',function(e){
+  if(keyDowns[e.code]) return;
+  keyDowns[e.code]=true;
+
+  if(e.code==='KeyR'){
+    if(state==='gameover'||state==='playing') resetGame();
+    e.preventDefault(); return;
+  }
+
+  if(state==='title'){
+    if(e.code==='Enter'||e.code==='Space'){startGame(); e.preventDefault();}
+    return;
+  }
+
+  if(state==='gameover'){
+    if(e.code==='Enter'||e.code==='KeyR'){resetGame(); e.preventDefault();}
+    return;
+  }
+
+  if(state==='paused'){
+    if(e.code==='KeyP'){state='playing'; e.preventDefault();}
+    return;
+  }
+
+  // Playing state
+  switch(e.code){
+    case 'ArrowLeft':  inputState.left=true;  e.preventDefault(); break;
+    case 'ArrowRight': inputState.right=true; e.preventDefault(); break;
+    case 'ArrowDown':  inputState.down=true;  e.preventDefault(); break;
+    case 'ArrowUp':    tryRotate(1); e.preventDefault(); break;
+    case 'Space':      hardDrop(); e.preventDefault(); break;
+    case 'KeyC':
+    case 'ShiftLeft':
+    case 'ShiftRight': holdPieceFn(); e.preventDefault(); break;
+    case 'KeyP':      state='paused'; e.preventDefault(); break;
+  }
+});
+
+document.addEventListener('keyup',function(e){
+  keyDowns[e.code]=false;
+  if(e.code==='ArrowLeft') inputState.left=false;
+  if(e.code==='ArrowRight') inputState.right=false;
+  if(e.code==='ArrowDown') inputState.down=false;
+});
+
+// --- DAS (Delayed Auto Shift) ---
+function processInput(now){
+  // Left
+  if(inputState.left){
+    if(!inputTimer.left){
+      move(-1,0);
+      inputTimer.left={start:now, next:now+DAS_DELAY, repeated:false};
+    } else if(now>=inputTimer.left.next){
+      move(-1,0);
+      inputTimer.left.next=now+DAS_REPEAT;
+    }
+  } else { inputTimer.left=null; }
+
+  // Right
+  if(inputState.right){
+    if(!inputTimer.right){
+      move(1,0);
+      inputTimer.right={start:now, next:now+DAS_DELAY, repeated:false};
+    } else if(now>=inputTimer.right.next){
+      move(1,0);
+      inputTimer.right.next=now+DAS_REPEAT;
+    }
+  } else { inputTimer.right=null; }
+
+  // Down (soft drop)
+  if(inputState.down){
+    if(valid(curPiece,curX,curY+1)){
+      curY++; score+=SOFT_PTS; dropTimer=0;
+    }
+  }
+}
+
+// --- Drawing ---
+function drawBlock(x,y,type,size){
+  const s=size;
+  ctx.fillStyle=COL[type];
+  ctx.fillRect(x*s,y*s,s,s);
+  // Light edges (top, left)
+  ctx.fillStyle=LT[type];
+  ctx.fillRect(x*s,y*s,s,2);
+  ctx.fillRect(x*s,y*s,2,s);
+  // Dark edges (bottom, right)
+  ctx.fillStyle=DK[type];
+  ctx.fillRect(x*s,(y+1)*s-2,s,2);
+  ctx.fillRect((x+1)*s-2,y*s,2,s);
+  // Inner highlight
+  ctx.fillStyle='rgba(255,255,255,0.08)';
+  ctx.fillRect(x*s+3,y*s+3,s-6,s-6);
+  // Border
+  ctx.strokeStyle='rgba(0,0,0,0.4)';
+  ctx.lineWidth=1;
+  ctx.strokeRect(x*s+0.5,y*s+0.5,s-1,s-1);
+}
+
+function drawGhostBlock(x,y,type,size){
+  const s=size;
+  ctx.fillStyle='rgba(255,255,255,0.12)';
+  ctx.fillRect(x*s,y*s,s,s);
+  ctx.strokeStyle='rgba(255,255,255,0.3)';
+  ctx.lineWidth=1;
+  ctx.strokeRect(x*s+1,y*s+1,s-2,s-2);
+}
+
+function drawGrid(){
+  ctx.strokeStyle='rgba(255,255,255,0.05)';
+  ctx.lineWidth=0.5;
+  for(let x=0;x<=COLS;x++){
+    ctx.beginPath();ctx.moveTo(x*BLOCK+0.5,0);ctx.lineTo(x*BLOCK+0.5,ROWS*BLOCK);ctx.stroke();
+  }
+  for(let y=0;y<=ROWS;y++){
+    ctx.beginPath();ctx.moveTo(0,y*BLOCK+0.5);ctx.lineTo(COLS*BLOCK,y*BLOCK+0.5);ctx.stroke();
+  }
+}
+
+function drawBoard(){
+  ctx.fillStyle='#0a0a18';
+  ctx.fillRect(0,0,COLS*BLOCK,ROWS*BLOCK);
+  drawGrid();
+
+  // Locked blocks
+  for(let y=0;y<ROWS;y++){
+    for(let x=0;x<COLS;x++){
+      if(board[y][x]!==null){
+        if(lineClearFlash>0 && animLines.indexOf(y)>=0){
+          // Flash white during line clear
+          const flash=Math.floor(lineClearFlash/50)%2===0;
+          ctx.fillStyle=flash?'#fff':'#0a0a18';
+          ctx.fillRect(x*BLOCK,y*BLOCK,BLOCK,BLOCK);
+        }
+        drawBlock(x,y,board[y][x],BLOCK);
+      }
+    }
+  }
+}
+
+function drawActivePiece(){
+  if(!curPiece||state!=='playing') return;
+
+  // Ghost
+  const gy=ghostY();
+  if(gy!==curY){
+    for(let i=0;i<curPiece.length;i++){
+      const px=curPiece[i][0]+curX, py=curPiece[i][1]+gy;
+      if(py>=0) drawGhostBlock(px,py,curType,BLOCK);
+    }
+  }
+
+  // Active piece
+  for(let i=0;i<curPiece.length;i++){
+    const px=curPiece[i][0]+curX, py=curPiece[i][1]+curY;
+    if(py>=0) drawBlock(px,py,curType,BLOCK);
+  }
+}
+
+function drawMiniPiece(cx,cy,type,bs){
+  if(!type) return;
+  const shape=SHAPES[type][0];
+  let mnX=99,mxX=-99,mnY=99,mxY=-99;
+  for(let i=0;i<shape.length;i++){
+    mnX=Math.min(mnX,shape[i][0]); mxX=Math.max(mxX,shape[i][0]);
+    mnY=Math.min(mnY,shape[i][1]); mxY=Math.max(mxY,shape[i][1]);
+  }
+  const pw=mxX-mnX+1, ph=mxY-mnY+1;
+  const ox=Math.floor((4-pw)/2)-mnX, oy=Math.floor((3-ph)/2)-mnY;
+  for(let i=0;i<shape.length;i++){
+    drawBlock(cx+(shape[i][0]+ox),cy+(shape[i][1]+oy),type,bs);
+  }
+}
+
+function drawLabel(text,x,y,subtext,subx,suby){
+  ctx.fillStyle='#888';
+  ctx.font='11px "Courier New",monospace';
+  ctx.textAlign='left';
+  ctx.fillText(text,x,y);
+  if(subtext){
+    ctx.fillStyle='#fff';
+    ctx.font='bold 16px "Courier New",monospace';
+    ctx.textAlign=subx||'right';
+    ctx.fillText(subtext,x,y+20);
+  }
+}
+
+function drawPanelBox(x,y,w,h){
+  ctx.strokeStyle='#333';
+  ctx.lineWidth=1;
+  ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle='rgba(255,255,255,0.015)';
+  ctx.fillRect(x,y,w,h);
+}
+
+function drawSidePanel(){
+  const ox=COLS*BLOCK+25;
+
+  // Title
+  ctx.textAlign='center';
+  ctx.font='bold 28px "Courier New",monospace';
+  ctx.fillStyle='#00FFFF';
+  ctx.fillText('TETRIS',ox+PANEL_W/2,35);
+
+  ctx.fillStyle='#FF7000';
+  ctx.font='10px "Courier New",monospace';
+  ctx.fillText('\u00A9 ATARI 1988',ox+PANEL_W/2,52);
+
+  // Score
+  drawPanelBox(ox,65,PANEL_W,50);
+  drawLabel('SCORE',ox+10,80,score.toString().padStart(7,'0'));
+
+  // Level
+  drawPanelBox(ox,125,PANEL_W,50);
+  drawLabel('LEVEL',ox+10,140,level.toString());
+
+  // Lines
+  drawPanelBox(ox,185,PANEL_W,50);
+  drawLabel('LINES',ox+10,200,lines.toString());
+
+  // Next
+  drawPanelBox(ox,245,PANEL_W,120);
+  ctx.fillStyle='#888';
+  ctx.font='12px "Courier New",monospace';
+  ctx.textAlign='center';
+  ctx.fillText('NEXT',ox+PANEL_W/2,265);
+  for(let i=0;i<Math.min(3,nextQueue.length);i++){
+    const shape=SHAPES[nextQueue[i]][0];
+    let mnX=99,mxX=-99,mnY=99,mxY=-99;
+    for(let j=0;j<shape.length;j++){
+      mnX=Math.min(mnX,shape[j][0]); mxX=Math.max(mxX,shape[j][0]);
+      mnY=Math.min(mnY,shape[j][1]); mxY=Math.max(mxY,shape[j][1]);
+    }
+    const pw=mxX-mnX+1, ph=mxY-mnY+1;
+    const ox2=Math.floor((4-pw)/2)-mnX, oy2=Math.floor((2.5-ph)/2)-mnY;
+    const py=278+i*38;
+    for(let j=0;j<shape.length;j++){
+      drawBlock(ox+20+(shape[j][0]+ox2),py+(shape[j][1]+oy2),nextQueue[i],18);
+    }
+  }
+
+  // Hold
+  drawPanelBox(ox,380,PANEL_W,120);
+  ctx.fillStyle=canHold?'#888':'#444';
+  ctx.font='12px "Courier New",monospace';
+  ctx.textAlign='center';
+  ctx.fillText('HOLD (C)',ox+PANEL_W/2,400);
+  if(holdType){
+    drawMiniPiece(ox+20,415,holdType,18);
+  } else {
+    ctx.fillStyle='#333';
+    ctx.font='11px "Courier New",monospace';
+    ctx.fillText('empty',ox+PANEL_W/2,445);
+  }
+
+  // Controls hint (small)
+  drawPanelBox(ox,515,PANEL_W,65);
+  ctx.fillStyle='#555';
+  ctx.font='9px "Courier New",monospace';
+  ctx.textAlign='left';
+  const hints=[
+    '\u2190 \u2192 MOVE',
+    '\u2191 ROTATE',
+    '\u2193 SOFT DROP',
+    'SPACE HARD DROP',
+    'C HOLD  P PAUSE'
+  ];
+  hints.forEach((h,i)=>ctx.fillText(h,ox+10,535+i*11));
+}
+
+// --- Screens ---
+function drawStartScreen(){
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+
+  const cx=W/2;
+  const titleY=H*0.22;
+
+  // Decorative line
+  ctx.fillStyle='#333';
+  ctx.fillRect(cx-120,titleY-60,240,2);
+  ctx.fillRect(cx-120,titleY+100,240,2);
+
+  // Title with Atari style glow
+  ctx.textAlign='center';
+
+  // Shadow
+  ctx.fillStyle='#004444';
+  ctx.font='bold 80px "Courier New",monospace';
+  ctx.fillText('TETRIS',cx+4,titleY+4);
+
+  // Main
+  ctx.fillStyle='#00FFFF';
+  ctx.font='bold 80px "Courier New",monospace';
+  ctx.fillText('TETRIS',cx,titleY);
+
+  // White core
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.font='bold 80px "Courier New",monospace';
+  ctx.fillText('TETRIS',cx,titleY);
+
+  // Year
+  ctx.fillStyle='#FF7000';
+  ctx.font='bold 16px "Courier New",monospace';
+  ctx.fillText('ATARI GAMES \u00A9 1988',cx,titleY+40);
+
+  // Blinking prompt
+  const blink=Math.sin(performance.now()/350)>0;
+  if(blink){
+    ctx.fillStyle='#fff';
+    ctx.font='bold 20px "Courier New",monospace';
+    ctx.fillText('PRESS ENTER',cx,titleY+100);
+  }
+
+  // Controls
+  ctx.fillStyle='#aaa';
+  ctx.font='13px "Courier New",monospace';
+  ctx.fillText('CONTROLS',cx,titleY+150);
+
+  const ctrlY=titleY+175;
+  const controls=[
+    ['\u2190 \u2192','Move piece left/right'],
+    ['\u2191','Rotate clockwise'],
+    ['\u2193','Soft drop (hold)'],
+    ['SPACE','Hard drop'],
+    ['C / SHIFT','Hold piece'],
+    ['P','Pause game'],
+    ['R','Restart game']
+  ];
+  ctx.font='12px "Courier New",monospace';
+  controls.forEach(function(c,i){
+    ctx.fillStyle='#FFA500';
+    ctx.textAlign='right';
+    ctx.fillText(c[0],cx-20,ctrlY+i*24);
+    ctx.fillStyle='#bbb';
+    ctx.textAlign='left';
+    ctx.fillText(c[1],cx+20,ctrlY+i*24);
+  });
+
+  ctx.fillStyle='#444';
+  ctx.font='11px "Courier New",monospace';
+  ctx.textAlign='center';
+  ctx.fillText('ARCADE CLASSIC',cx,H-30);
+}
+
+function drawPauseScreen(){
+  ctx.fillStyle='rgba(0,0,0,0.65)';
+  ctx.fillRect(0,0,W,H);
+
+  const cx=W/2;
+  const cy=H/2;
+
+  ctx.textAlign='center';
+  ctx.fillStyle='#FFFF00';
+  ctx.font='bold 48px "Courier New",monospace';
+  ctx.fillText('PAUSED',cx,cy-10);
+
+  const blink=Math.sin(performance.now()/350)>0;
+  if(blink){
+    ctx.fillStyle='#fff';
+    ctx.font='16px "Courier New",monospace';
+    ctx.fillText('PRESS P TO RESUME',cx,cy+30);
+  }
+}
+
+function drawGameOverScreen(){
+  ctx.fillStyle='rgba(0,0,0,0.75)';
+  ctx.fillRect(0,0,W,H);
+
+  const cx=W/2;
+  const cy=H/2;
+
+  ctx.textAlign='center';
+
+  // Game Over box
+  ctx.strokeStyle='#FF0000';
+  ctx.lineWidth=2;
+  ctx.strokeRect(cx-120,cy-100,240,200);
+  ctx.fillStyle='rgba(0,0,0,0.8)';
+  ctx.fillRect(cx-120,cy-100,240,200);
+
+  ctx.fillStyle='#FF0000';
+  ctx.font='bold 44px "Courier New",monospace';
+  ctx.fillText('GAME OVER',cx,cy-55);
+
+  ctx.fillStyle='#fff';
+  ctx.font='18px "Courier New",monospace';
+  ctx.fillText('SCORE: '+score.toString().padStart(7,'0'),cx,cy-10);
+  ctx.fillText('LEVEL: '+level,cx,cy+25);
+  ctx.fillText('LINES: '+lines,cx,cy+60);
+
+  const blink=Math.sin(performance.now()/350)>0;
+  if(blink){
+    ctx.fillStyle='#FFA500';
+    ctx.font='bold 16px "Courier New",monospace';
+    ctx.fillText('PRESS ENTER TO RESTART',cx,cy+110);
+  }
+}
+
+// --- Game Control ---
+function startGame(){
+  state='playing';
+  resetGame();
+}
+
+function resetGame(){
+  createBoard();
+  score=0; level=1; lines=0;
+  state='playing';
+  bag=[]; nextQueue=[];
+  holdType=null; canHold=true;
+  dropInterval=getSpeed(1);
+  dropTimer=0;
+  lockTimer=0; lockActive=false;
+  animLines=[]; animTimer=0;
+  lineClearFlash=0;
+  fillBag();
+  spawnPiece();
+  dropTimer=performance.now();
+}
+
+// --- Main Loop ---
+function loop(now){
+  requestAnimationFrame(loop);
+
+  if(state==='title'){
+    drawStartScreen();
+    return;
+  }
+
+  if(state==='gameover'){
+    drawBoard();
+    drawSidePanel();
+    drawGameOverScreen();
+    return;
+  }
+
+  if(state==='paused'){
+    drawBoard();
+    drawSidePanel();
+    drawPauseScreen();
+    return;
+  }
+
+  // --- Playing state ---
+  // Process DAS input
+  processInput(now);
+
+  // Line clear flash
+  if(lineClearFlash>0) lineClearFlash-=16;
+
+  // Gravity
+  if(now-dropTimer>=dropInterval){
+    if(!valid(curPiece,curX,curY+1)){
+      if(!lockActive){lockActive=true;lockTimer=0;}
+      lockTimer+=16;
+      if(lockTimer>=lockDelay){
+        lockPiece();
+      }
+    } else {
+      lockActive=false; lockTimer=0;
+      dropTimer=now;
+    }
+  }
+
+  // Draw
+  drawBoard();
+  drawActivePiece();
+  drawSidePanel();
+}
+
+// --- Init ---
+createBoard();
+fillBag();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
