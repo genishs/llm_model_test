@@ -2,6 +2,28 @@
 
 이 폴더는 로컬 LLM 15종의 제원·출처·서버 설정·실측값을 모델별로 정리한 것이다. 시험(대회) 결과는 이곳이 아니라 레포 루트의 번호 붙은 시험 폴더(`01_`, `02_`, …, 예: `01_tetris_game_test`)에 있고, 모델 파일의 맨 아래 「참가한 테스트」에서 연결한다.
 
+## 15개 모델 요약 — 한 장으로 보기
+
+| 약어 | 풀네임 | 발표처(공개) | 파라미터(전체 / 활성) | 필요 메모리(파일) | 실측 점유(GTT) | 특징 |
+|---|---|---|---|---|---|---|
+| [cn](cn.md) | Qwen3-Coder-Next 80B-A3B | Alibaba Qwen (2026-01) | 80B / 3B | 48.7GB | 47.5G | 코딩 전용, 생각 없음. 빨리 끝내지만 핵심 규칙을 틀린 적 있음 |
+| [q36](q36.md) | Qwen3.6-35B-A3B (MTP판) | Alibaba Qwen (2026-04) | 35B / 3B | 30.0GB | 30.7G | MTP 로 약 90 t/s(최고속 그룹). 테트리스 5/5. 기본 일꾼 |
+| [orn](orn.md) | Ornith-1.5-35B-A3B | ornith-ai (2026-08) | 35B / 3B | 29.2GB | 30.0G | 자가 개선 강화학습. 모델 카드의 벤치 점수가 높음(직접 검증 안 함), 약 81 t/s |
+| [mg](mg.md) | Muse Glimmer 30B | Meta (2026-08) | 30B / 30B (dense) | 19.7 + 1.6GB | 22.7G | 생각 강도 low/xhigh. 느리지만(약 25 t/s) 이전 실전 완성도 1위 |
+| [fn](fn.md) | Qwen3.8-Flash-Next GSQ-RCO Coder | Qwen 원본(2026-08) → ISTA-DASLab 압축 | 125B / 6B (+ n-gram 임베딩 51B), 전문가 절반 제거 | 58.4GB | 30.2G (+28.8GB 디스크 mmap) | 약 1.9비트 초압축, 약 24 t/s. 같은 빈 배열 버그 반복 |
+| [ff](ff.md) | Qwen3.8-Flash-Next GSQ-RCO 전체판 | 같음 | 125B / 6B (+ 51B), 전문가 512개 | 75.8GB | 46.5G (+28.8GB 디스크 mmap) | RAM 여유가 가장 적음(최저 11.6G). 약 24 t/s |
+| [mel](mel.md) | Mellum 2.1 12B-A2.5B Thinking | JetBrains (2026-09) | 12B / 2.5B | 12.9GB | 13.4G | 생각 모델. b11539 에서 읽기 약 2000 t/s·생성 약 85 t/s (b11701 에선 4.7배 느림, PR #30584) |
+| [q38](q38.md) | Qwen3.8-27B | Alibaba Qwen (2026-08) | 27B / 27B (dense) | 22.0GB | 27.7G | MTP, 생각 끔, 약 25 t/s |
+| [aw](aw.md) | Qwen-AgentWorld-35B-A3B | Alibaba Qwen (2026-06) | 35B / 3B | 29.3GB | 28.9G | 세계 모델(환경 시뮬레이터) — 코딩 에이전트용 아님. 생각을 길게 함 |
+| [c7](c7.md) | Qwen2.5-Coder-7B-Instruct | Alibaba Qwen (2024-09) | 7B / 7B | 8.1GB | 9.6G | 옛 세대 기준선, 문맥 32K |
+| [c7r](c7r.md) | c7 + 자체 학습 React LoRA | 직접 학습 (2026-06) | 7B + 어댑터 80MB | 8.1GB (+어댑터 80MB) | 9.6G | 직접 학습한 LoRA 예시(어댑터 비공개) |
+| [c1](c1.md) | Qwen2.5-Coder-1.5B-Instruct | Alibaba Qwen (2024-09) | 1.5B / 1.5B | 3.1GB | 4.3G | 가장 작음. 읽기 약 3000 t/s |
+| [bolt](bolt.md) | NVIDIA Nemotron 3.5 Bolt 74B-A9B 24GB | NVIDIA (2026-10) | 74B / 9B | 22.0 + 1.7 + 1.0GB | 28.8G | 공식 2비트 QAT, 로컬 에이전트용, 이미지·영상 입력, DFlash. 생각 기본 끔 |
+| [lfm](lfm.md) | LFM2.5-24B-A2B | Liquid AI (2026-10) | 24B / 2B | 25.5GB | 25.4G | 도구 호출 에이전트용, 약 75 t/s, 읽기 약 1800 t/s, 생각을 길게 함 |
+| [mcv](mcv.md) | MiniCPM-V 4.7 35B-A3B | OpenBMB (2026-10) | 35B / 3B | 28.5 + 1.1 + 0.4GB | 32.2G | 이미지·영상 이해 특화, DSpark 초안으로 약 90 t/s |
+
+필요 메모리 = 모델 파일 크기, 실측 점유 = 이 서버에서 올렸을 때의 GPU 공유 메모리(GTT). 속도는 표준 시험 값(상세는 각 모델 파일).
+
 ## 이 모델들은 무엇인가
 
 코딩 에이전트에 쓸 수 있는지 보려고 한 대의 로컬 서버에 올려 본 오픈 가중치 모델 15종이다. Qwen·Meta·JetBrains·NVIDIA·Liquid AI·OpenBMB 등 서로 다른 곳에서 만든 MoE·dense 모델이 섞여 있고, 기준선으로 옛 세대의 작은 코더 모델과 직접 학습한 LoRA 예시도 하나 포함했다.
