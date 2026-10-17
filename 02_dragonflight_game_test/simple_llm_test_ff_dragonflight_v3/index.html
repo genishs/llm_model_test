@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>Dragonflight - 스크롤 슈팅</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="480" height="720"></canvas>
+
+    <div id="hud" class="hidden">
+      <div class="hud-row">
+        <span class="hud-item">STAGE <b id="hud-stage">1</b></span>
+        <span class="hud-item">SCORE <b id="hud-score">0</b></span>
+      </div>
+      <div class="hud-row">
+        <span class="hud-item">CREDIT <b id="hud-credit">0</b></span>
+        <span class="hud-item">COIN <b id="hud-coin">0</b></span>
+        <span class="hud-item">KILL <b id="hud-kill">0</b></span>
+      </div>
+      <div class="hud-row hud-power">
+        <span id="hud-power"></span>
+      </div>
+    </div>
+
+    <div id="stage-banner" class="hidden"><span id="banner-stage">STAGE 1</span></div>
+
+    <div id="touch-hint" class="hidden">화면을 손가락으로 좌우로 끌어 이동</div>
+
+    <!-- TITLE (attract) screen -->
+    <div id="title-screen" class="overlay">
+      <h1>DRAGONFLIGHT</h1>
+      <p class="subtitle">세로 스크롤 슈팅 · 아케이드</p>
+      <div class="credit-line">
+        <span class="credit-label">CREDIT</span>
+        <b id="title-credit">0</b>
+      </div>
+      <button id="coin-btn" class="coin-btn">코인 넣기 (C)</button>
+      <p id="coin-insert" class="coin-insert"></p>
+      <div class="instructions">
+        <p><b>조작</b></p>
+        <p>모바일: 화면을 손가락으로 좌우로 끌어 이동</p>
+        <p>PC: 좌우 키 (← / →) 또는 마우스 이동</p>
+        <p>발사는 자동으로 계속됩니다.</p>
+        <hr />
+        <p><b>크레딧 코인</b>을 넣어 게임을 시작하세요 (게임 안의 코인과는 다릅니다).</p>
+        <p>보스를 쓰러뜨리면 다음 스테이지로 넘어갑니다.</p>
+      </div>
+      <button id="start-btn" disabled>게임 시작</button>
+      <p class="hint">C = 크레딧 코인 · SPACE/탭 = 시작 (크레딧 필요)</p>
+    </div>
+
+    <!-- GAME OVER flash screen -->
+    <div id="gameover-screen" class="overlay hidden">
+      <h1>GAME OVER</h1>
+      <div class="result">
+        <div><span>STAGE</span><b id="final-stage">1</b></div>
+        <div><span>SCORE</span><b id="final-score">0</b></div>
+        <div><span>KILLS</span><b id="final-kill">0</b></div>
+        <div><span>COINS</span><b id="final-coin">0</b></div>
+      </div>
+    </div>
+
+    <!-- CONTINUE countdown screen -->
+    <div id="continue-screen" class="overlay hidden">
+      <h1>CONTINUE?</h1>
+      <div class="count" id="cont-count">10</div>
+      <div class="result">
+        <div><span>STAGE 유지</span><b id="cont-stage">1</b></div>
+        <div><span>SCORE 유지</span><b id="cont-score">0</b></div>
+      </div>
+      <div class="credit-line">
+        <span class="credit-label">CREDIT</span>
+        <b id="cont-credit">0</b>
+      </div>
+      <button id="coin-btn2" class="coin-btn">코인 넣기 (C)</button>
+      <button id="continue-btn" disabled>크레딧으로 계속하기</button>
+      <p class="hint">C = 크레딧 코인 · SPACE/탭 = 계속 (시간 내, 크레딧 필요)</p>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
