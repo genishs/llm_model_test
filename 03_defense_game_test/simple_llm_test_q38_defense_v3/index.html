@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>NEON CORE DEFENSE</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #05060f;
+    color: #cfe3ff;
+    font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    position: fixed;
+    inset: 0;
+    overscroll-behavior: none;
+  }
+  #wrap {
+    position: relative;
+    width: 100vw; height: 100vh;
+    width: 100dvw; height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas {
+    background: radial-gradient(ellipse at center, #0a0f24 0%, #05060f 75%);
+    box-shadow: 0 0 60px rgba(0, 229, 255, 0.15) inset;
+    cursor: crosshair;
+    touch-action: none;
+    display: block;
+  }
+  #hud {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: calc(8px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 8px calc(12px + env(safe-area-inset-left));
+    pointer-events: none;
+    font-size: 15px; letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0,229,255,0.8);
+  }
+  #hud .stat { margin-right: 18px; }
+  .gold { color: #ffd75e; text-shadow: 0 0 8px rgba(255,215,94,0.8); }
+  .hp   { color: #ff5e8a; text-shadow: 0 0 8px rgba(255,94,138,0.8); }
+  .wave { color: #7dffd4; text-shadow: 0 0 8px rgba(125,255,212,0.8); }
+  .stage { color: #7dffd4; text-shadow: 0 0 8px rgba(125,255,212,0.8); font-weight: 700; }
+  #bossBadge {
+    position: absolute; top: calc(34px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    pointer-events: none;
+    color: #ff2d78; font-size: 16px; font-weight: 800; letter-spacing: 2px;
+    text-shadow: 0 0 14px rgba(255,45,120,0.9);
+    z-index: 11;
+    animation: bossPulse 0.9s ease-in-out infinite;
+  }
+  @keyframes bossPulse { 0%,100% { opacity: 1; transform: translateX(-50%) scale(1); } 50% { opacity: 0.55; transform: translateX(-50%) scale(1.08); } }
+  #buildbar {
+    position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px;
+    width: auto; max-width: calc(100vw - 20px);
+  }
+  .buildbtn {
+    pointer-events: auto;
+    background: rgba(10, 20, 45, 0.85);
+    border: 1px solid #1f3b6b;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #cfe3ff;
+    cursor: pointer;
+    transition: all .15s;
+    min-width: 96px;
+    text-align: center;
+  }
+  .buildbtn:active { border-color: #00e5ff; box-shadow: 0 0 14px rgba(0,229,255,0.5); }
+  .buildbtn.active { border-color: #00e5ff; background: rgba(0,229,255,0.15); box-shadow: 0 0 18px rgba(0,229,255,0.7); }
+  .buildbtn .cost { color: #ffd75e; font-size: 12px; }
+  .buildbtn .name { font-size: 13px; font-weight: 600; }
+  .buildbtn .desc { font-size: 10px; color: #8fa8d0; }
+  .buildbtn.poor { opacity: 0.45; }
+  #waveBtn {
+    position: absolute;
+    top: calc(50px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+    pointer-events: auto;
+    background: linear-gradient(180deg, #12b886, #0b7a5a);
+    border: 1px solid #4dff88; border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14px; font-weight: 700; letter-spacing: 1px;
+    color: #04180f; cursor: pointer;
+    box-shadow: 0 0 18px rgba(77,255,136,0.5);
+    z-index: 12;
+    transition: transform .1s;
+  }
+  #waveBtn:active { transform: scale(1.05); }
+  #waveBtn.hidden { display: none !important; }
+  #upgradePanel {
+    position: absolute;
+    display: none;
+    background: rgba(8, 14, 32, 0.95);
+    border: 1px solid #00e5ff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    pointer-events: auto;
+    box-shadow: 0 0 20px rgba(0,229,255,0.4);
+    min-width: 170px;
+    z-index: 10;
+  }
+  #upgradePanel h4 { color: #00e5ff; margin-bottom: 8px; font-size: 14px; }
+  #upgradePanel .row { display: flex; justify-content: space-between; margin: 4px 0; color: #a9c4ec; }
+  #upgradePanel button {
+    width: 100%; margin-top: 8px;
+    background: #0d2a52; border: 1px solid #2a5da8; color: #cfe3ff;
+    padding: 6px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  }
+  #upgradePanel button:hover:not(:disabled) { background: #14407e; }
+  #upgradePanel button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(3, 5, 12, 0.82);
+    z-index: 20;
+    text-align: center;
+  }
+  #overlay h1 {
+    font-size: 52px; letter-spacing: 6px;
+    color: #00e5ff;
+    text-shadow: 0 0 24px rgba(0,229,255,0.9), 0 0 60px rgba(0,229,255,0.4);
+    margin-bottom: 10px;
+  }
+  #overlay h2 { font-size: 20px; color: #7dffd4; letter-spacing: 3px; margin-bottom: 26px; }
+  #overlay p { color: #8fa8d0; font-size: 14px; line-height: 1.9; margin-bottom: 26px; }
+  #overlay .bigbtn {
+    pointer-events: auto;
+    background: linear-gradient(180deg, #00e5ff, #0077aa);
+    border: none; border-radius: 10px;
+    padding: 14px 46px;
+    font-size: 20px; font-weight: 700; letter-spacing: 3px;
+    color: #041018; cursor: pointer;
+    box-shadow: 0 0 26px rgba(0,229,255,0.6);
+    transition: transform .1s;
+  }
+  #overlay .bigbtn:hover { transform: scale(1.05); }
+  #overlay .sub { margin-top: 16px; font-size: 12px; color: #5f7aa8; }
+  .hidden { display: none !important; }
+  #tooltip {
+    position: absolute; pointer-events: none;
+    background: rgba(8,14,32,0.95); border: 1px solid #2a5da8;
+    padding: 6px 10px; border-radius: 6px; font-size: 12px;
+    display: none; z-index: 15; white-space: nowrap;
+  }
+  #touchHint {
+    position: absolute; top: calc(34px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+    pointer-events: none;
+    font-size: 11px; color: #5f7aa8; letter-spacing: .5px;
+    text-align: center; white-space: nowrap;
+    text-shadow: 0 0 6px rgba(0,0,0,0.8);
+    z-index: 11;
+  }
+  /* ---------- Mobile (narrow / small screens) ---------- */
+  @media (max-width: 640px), (max-height: 480px) {
+    #hud { font-size: 12px; padding-top: calc(6px + env(safe-area-inset-top)); }
+    #hud .stat { margin-right: 10px; }
+    #buildbar { gap: 6px; bottom: calc(10px + env(safe-area-inset-bottom)); }
+    .buildbtn { min-width: 78px; padding: 7px 8px; border-radius: 8px; }
+    .buildbtn .name { font-size: 12px; }
+    .buildbtn .cost { font-size: 11px; }
+    .buildbtn .desc { display: none; }
+    #waveBtn { top: calc(40px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); padding: 8px 12px; font-size: 12px; }
+    #touchHint { font-size: 10px; }
+    #overlay h1 { font-size: 34px; letter-spacing: 3px; }
+    #overlay h2 { font-size: 15px; letter-spacing: 2px; margin-bottom: 18px; }
+    #overlay p { font-size: 12px; line-height: 1.8; padding: 0 18px; max-width: 92vw; }
+    #overlay .bigbtn { padding: 12px 34px; font-size: 17px; }
+    #upgradePanel { min-width: 150px; font-size: 12px; padding: 10px 12px; }
+  }
+  /* Portrait phones: stack build buttons to stay touchable */
+  @media (max-width: 420px) and (orientation: portrait) {
+    #buildbar { gap: 6px; }
+    .buildbtn { min-width: 0; flex: 1 1 0; padding: 8px 6px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div>
+      <span class="stat stage" id="stageBadge">STAGE 0</span>
+      <span class="stat gold">◈ <span id="goldNum">0</span></span>
+    </div>
+    <div>
+      <span class="stat hp">CORE <span id="hpNum">100</span>/100</span>
+    </div>
+  </div>
+  <div id="bossBadge" class="hidden">⚠ BOSS ⚠</div>
+
+  <div id="buildbar"></div>
+
+  <button id="waveBtn" class="hidden">▶ START WAVE</button>
+  <div id="touchHint">탭: 배치/선택 &nbsp;·&nbsp; 길게 누르기: 취소</div>
+
+  <div id="upgradePanel">
+    <h4 id="upTitle">Turret</h4>
+    <div class="row"><span>레벨</span><span id="upLevel">1</span></div>
+    <div class="row"><span>데미지</span><span id="upDmg">10</span></div>
+    <div class="row"><span>사거리</span><span id="upRange">140</span></div>
+    <button id="upBtn">업그레이드 (◈ 0)</button>
+    <button id="sellBtn">철거 (◈ 0)</button>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <div id="overlay">
+    <h1>NEON CORE</h1>
+    <h2>D E F E N S E</h2>
+    <p>
+      네온 그리드 너머로 무수한 해커 드론들이 접근하고 있다.<br>
+      코어를 지키라 — <b>터렛</b>을 배치하고, <b>업그레이드</b>하라.<br><br>
+      <b>PC:</b> [클릭] 배치/선택 · [우클릭] 취소 · [Space] 웨이브 시작<br>
+      <b>모바일:</b> [탭] 배치/선택 · [길게 누르기] 취소 · [▶ START WAVE] 버튼
+    </p>
+    <button class="bigbtn" id="startBtn">START</button>
+    <div class="sub">v1.0 · pure canvas · no dependencies</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ============================================================
+//  NEON CORE DEFENSE — single-file canvas tower defense
+// ============================================================
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let W = 0, H = 0;
+let isMobile = false;   // narrow screen → tighter layout
+let uiScale = 1;        // global size scale for turrets/ranges on small screens
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  // Mobile = narrow width OR short height (landscape phone) OR coarse pointer
+  const coarse = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  isMobile = (W < 700) || (H < 480) || coarse;
+  uiScale = Math.max(0.72, Math.min(1, Math.min(W, H) / 700));
+  buildGrid();
+  if (selectedTurret) showUpgrade(selectedTurret, selectedTurret.x, selectedTurret.y);
+}
+function onResizeDebounced() {
+  clearTimeout(resize._t);
+  resize._t = setTimeout(resize, 120);
+}
+window.addEventListener("resize", onResizeDebounced);
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+
+// ---------- Core (base) ----------
+const core = { x: 0, y: 0, r: 26, hp: 100, maxHp: 100 };
+
+// ---------- Path (winding, regenerated on resize) ----------
+let path = [];        // list of points
+let pathLen = 0;      // total length
+let grid = [];        // blocked cells
+
+function buildPath() {
+  // A serpentine path from left edge to the core on the right.
+  // Adaptive: fewer columns + tighter margins on narrow (mobile) screens.
+  const pts = [];
+  const narrow = W < 620;
+  const margin = narrow ? 40 : 70;
+  const cols = narrow ? 3 : 5; // number of vertical segments
+  const coreSpace = narrow ? 90 : 190;
+  const usableW = W - margin * 2 - coreSpace;
+  const segW = usableW / cols;
+  const top = margin, bottom = H - margin;
+  core.x = W - coreSpace + 30;
+  core.y = H / 2;
+
+  // start off-screen left, middle height
+  let y = H * 0.5;
+  pts.push({x: -40, y: y});
+
+  for (let i = 0; i < cols; i++) {
+    const px = margin + segW * (i + 0.5);
+    const ty = (i % 2 === 0) ? top : bottom;
+    pts.push({x: px, y: y});
+    pts.push({x: px, y: ty});
+    y = ty;
+  }
+  // final approach to core
+  pts.push({x: core.x - core.r, y: core.y});
+  pts.push({x: core.x, y: core.y});
+
+  return pts;
+}
+
+function buildGrid() {
+  path = buildPath();
+  pathLen = 0;
+  for (let i = 1; i < path.length; i++) {
+    pathLen += Math.hypot(path[i].x - path[i-1].x, path[i].y - path[i-1].y);
+  }
+  // blocked grid: mark cells near the path
+  const cell = 40;
+  const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+  grid = new Array(cols * rows).fill(false);
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i-1], b = path[i];
+    const d = Math.hypot(b.x-a.x, b.y-a.y);
+    const steps = Math.ceil(d / 8);
+    for (let s = 0; s <= steps; s++) {
+      const t = s / steps;
+      const px = a.x + (b.x-a.x)*t, py = a.y + (b.y-a.y)*t;
+      markBlocked(px, py, 30, cell, cols, rows);
+    }
+  }
+  // core area
+  for (let k = 0; k < 12; k++) {
+    const ang = (k/12)*Math.PI*2;
+    markBlocked(core.x + Math.cos(ang)*40, core.y + Math.sin(ang)*40, 40, cell, cols, rows);
+  }
+}
+
+function markBlocked(px, py, radius, cell, cols, rows) {
+  const r = Math.ceil(radius / cell) + 1;
+  const cc = Math.floor(px / cell), cr = Math.floor(py / cell);
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const cx = cc + dx, cy = cr + dy;
+      if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) continue;
+      const cellCx = cx*cell + cell/2, cellCy = cy*cell + cell/2;
+      if (Math.hypot(cellCx-px, cellCy-py) < radius + cell*0.4) {
+        grid[cy*cols + cx] = true;
+      }
+    }
+  }
+}
+
+function canBuild(px, py) {
+  if (px < 20 || px > W-20 || py < 50 || py > H-70) return false;
+  const cell = 40;
+  const cx = Math.floor(px / cell), cy = Math.floor(py / cell);
+  const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+  if (cx < 0 || cy < 0 || cx >= cols || cy >= rows) return false;
+  if (grid[cy*cols + cx]) return false;
+  if (Math.hypot(px-core.x, py-core.y) < core.r + 30) return false;
+  for (const t of turrets) {
+    if (Math.hypot(px-t.x, py-t.y) < 36) return false;
+  }
+  return true;
+}
+// Scaled range helper so tower ranges shrink on small screens
+function sr(v) { return v * uiScale; }
+
+// ---------- Turret definitions ----------
+const TURRET_TYPES = {
+  pulse:  { name: "PULSE",  cost: 50,  dmg: 12, range: 150, rate: 0.5,  color: "#00e5ff", proj: "#7df9ff", desc: "균형형 레이저" },
+  flak:   { name: "FLAK",   cost: 90,  dmg: 22, range: 120, rate: 1.1,  color: "#ff9d3c", proj: "#ffc46b", desc: "짧은 사거리 고피" },
+  rail:   { name: "RAIL",   cost: 160, dmg: 55, range: 240, rate: 2.2,  color: "#c05cff", proj: "#e0b3ff", desc: "장거리 궤도포" },
+};
+const TURRET_ORDER = ["pulse", "flak", "rail"];
+
+// ---------- State ----------
+let turrets = [];
+let enemies = [];
+let projectiles = [];
+let particles = [];
+let gold = 0;
+let wave = 0;
+let waveState = "idle"; // idle | spawning | active | between
+let toSpawn = [];
+let spawnTimer = 0;
+let spawnInterval = 0.6;
+let selectedType = null;   // building type preview
+let selectedTurret = null; // existing turret for upgrade
+let gameRunning = false;
+let gameOver = false;
+let lastTime = 0;
+let shakeT = 0;
+
+// ---------- Enemy types (scale with wave) ----------
+function makeEnemy(type, hpMul, spMul) {
+  const base = {
+    grunt:  { hp: 30,  speed: 70,  r: 12, color: "#ff4d6d", reward: 8,  shape: "tri"  },
+    runner: { hp: 18,  speed: 130, r: 9,  color: "#ffd23c", reward: 10, shape: "diamond" },
+    tank:   { hp: 110, speed: 40,  r: 18, color: "#8a5cff", reward: 22, shape: "hex"  },
+    boss:   { hp: 700, speed: 30,  r: 28, color: "#ff2d78", reward: 120,shape: "boss" },
+  }[type];
+  return {
+    type,
+    hp: base.hp * hpMul,
+    maxHp: base.hp * hpMul,
+    speed: base.speed * spMul,
+    baseSpeed: base.speed * spMul,
+    r: base.r,
+    color: base.color,
+    reward: base.reward,
+    shape: base.shape,
+    dist: 0,
+    x: path[0].x, y: path[0].y,
+    alive: true,
+    hitFlash: 0,
+    // boss behavior
+    boss: type === "boss",
+    bossTier: 0,
+    phase: 0,
+    phaseT: 0,
+    dashCd: 3,
+    summonCd: 5,
+    slowUntil: 0,
+  };
+}
+
+// ---------- Boss patterns ----------
+// Every 4th stage (wave) is a BOSS stage. Boss tier scales with stage.
+const BOSS_TIERS = {
+  1: { name: "WARDEN",     color: "#ff2d78", reward: 150, coreDmg: 25 },
+  2: { name: "EXECUTOR",   color: "#b05cff", reward: 300, coreDmg: 35 },
+  3: { name: "SINGULARITY",color: "#00d2ff", reward: 500, coreDmg: 45 },
+  4: { name: "OVERMIND",   color: "#ff7a2d", reward: 800, coreDmg: 60 },
+};
+
+function positionOnPath(dist) {
+  let d = dist;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i-1], b = path[i];
+    const seg = Math.hypot(b.x-a.x, b.y-a.y);
+    if (d <= seg) {
+      const t = seg === 0 ? 0 : d / seg;
+      return { x: a.x + (b.x-a.x)*t, y: a.y + (b.y-a.y)*t };
+    }
+    d -= seg;
+  }
+  return { x: path[path.length-1].x, y: path[path.length-1].y };
+}
+
+// ---------- Wave / Stage generation ----------
+// Stage == wave number. Every 4th stage is a BOSS stage.
+function isBossStage(w) { return w % 4 === 0; }
+function bossTierForWave(w) { return isBossStage(w) ? Math.min(4, Math.floor(w / 4)) : 0; }
+
+function spawnBoss(tier) {
+  const t = BOSS_TIERS[tier];
+  const hp = 700 * (1 + (wave - 1) * 0.22) * (1 + (tier - 1) * 1.6);
+  const b = makeEnemy("boss", 1, 1);
+  b.hp = hp; b.maxHp = hp;
+  b.baseSpeed = (30 + tier * 4) * (1 + (wave - 1) * 0.03);
+  b.speed = b.baseSpeed;
+  b.r = 26 + tier * 5;
+  b.color = t.color;
+  b.reward = t.reward;
+  b.boss = true;
+  b.bossTier = tier;
+  b.coreDmg = t.coreDmg;
+  b.name = t.name;
+  b.dashCd = 3.5;
+  b.summonCd = tier >= 2 ? 6 : 999; // tier>=2 can summon minions
+  b.phase = 0;
+  b.phaseT = 0;
+  enemies.push(b);
+  spawnParticles(b.x, b.y, t.color, 40, 260);
+  shakeT = 0.6;
+  return b;
+}
+
+// Distinct boss behavior per tier.
+// T1 WARDEN:      slow, periodic DASH bursts.
+// T2 EXECUTOR:    dash + SUMMONS grunt minions.
+// T3 SINGULARITY: dash + summons + SLOW aura that tucks (briefly) and then re-dashes.
+// T4 OVERMIND:    all patterns + rage (speed up) when below 35% HP.
+function updateBoss(e, dt, now) {
+  e.phaseT += dt;
+
+  // phase cycle: 0 = walk, 1 = dash
+  if (e.phase === 0) {
+    e.speed = e.baseSpeed;
+    e.dashCd -= dt;
+    if (e.dashCd <= 0 && e.phaseT > 1.2) {
+      e.phase = 1;
+      e.phaseT = 0;
+      e.dashCd = 4.5 - e.bossTier * 0.4;
+      spawnParticles(e.x, e.y, e.color, 20, 200);
+    }
+    // summon minions (tier >= 2)
+    if (e.bossTier >= 2) {
+      e.summonCd -= dt;
+      if (e.summonCd <= 0 && enemies.length < 26) {
+        e.summonCd = Math.max(4, 8 - e.bossTier);
+        const n = 2 + e.bossTier;
+        for (let i = 0; i < n; i++) {
+          const m = makeEnemy("grunt", 1 + (wave - 1) * 0.15, 1);
+          m.dist = Math.max(0, e.dist - i * 30);
+          enemies.push(m);
+          spawnParticles(e.x, e.y, m.color, 10, 120);
+        }
+        shakeT = 0.2;
+      }
+    }
+  } else {
+    // dashing: 2.4x speed for a short window
+    e.speed = e.baseSpeed * 2.4;
+    if (e.phaseT > 0.9) {
+      e.phase = 0;
+      e.phaseT = 0;
+    }
+  }
+
+  // tier 4 OVERMIND: rage below 35% hp → +60% speed
+  if (e.bossTier >= 4 && e.hp < e.maxHp * 0.35) {
+    e.speed = e.baseSpeed * (e.phase === 1 ? 3.2 : 1.6);
+  }
+}
+
+function startWave() {
+  wave++;
+  waveState = "spawning";
+  toSpawn = [];
+  const hpMul = 1 + (wave - 1) * 0.22;
+  const spMul = 1 + (wave - 1) * 0.03;
+  const bossStage = isBossStage(wave);
+  const tier = bossTierForWave(wave);
+
+  if (bossStage) {
+    // Boss stage: a lone boss with escalating patterns. No normal swarm.
+    toSpawn.push(["boss", hpMul * 1.5, spMul]);
+  } else {
+    const nGrunt = 4 + wave * 2;
+    const nRunner = wave >= 2 ? 2 + wave : 0;
+    const nTank = wave >= 3 ? Math.floor(wave / 2) : 0;
+    for (let i = 0; i < nGrunt; i++) toSpawn.push(["grunt", hpMul, spMul]);
+    for (let i = 0; i < nRunner; i++) toSpawn.push(["runner", hpMul, spMul]);
+    for (let i = 0; i < nTank; i++) toSpawn.push(["tank", hpMul, spMul]);
+  }
+  // interleave so different types arrive as a mixed stream
+  for (let i = toSpawn.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [toSpawn[i], toSpawn[j]] = [toSpawn[j], toSpawn[i]];
+  }
+  // per-type spawn cadence (seconds) — staggered arrival
+  spawnInterval = Math.max(0.32, 0.62 - wave * 0.015);
+  spawnTimer = 0.6;
+  document.getElementById("waveNum").textContent = wave;
+  document.getElementById("stageBadge").textContent = "STAGE " + wave;
+  document.getElementById("bossBadge").classList.toggle("hidden", !bossStage);
+  document.getElementById("bossBadge").textContent =
+    bossStage ? "⚠ BOSS — " + BOSS_TIERS[tier].name + " ⚠" : "";
+  refreshWaveBtn();
+}
+
+// ---------- Build UI ----------
+const buildbar = document.getElementById("buildbar");
+function buildUI() {
+  buildbar.innerHTML = "";
+  for (const key of TURRET_ORDER) {
+    const t = TURRET_TYPES[key];
+    const btn = document.createElement("div");
+    btn.className = "buildbtn";
+    btn.dataset.type = key;
+    btn.innerHTML = `<div class="name" style="color:${t.color}">${t.name}</div>
+                     <div class="cost">◈ ${t.cost}</div>
+                     <div class="desc">${t.desc}</div>`;
+    btn.addEventListener("click", () => {
+      if (selectedType === key) {
+        selectedType = null;
+      } else {
+        selectedType = key;
+        selectedTurret = null;
+        hideUpgrade();
+      }
+      refreshBuildUI();
+    });
+    buildbar.appendChild(btn);
+  }
+  refreshBuildUI();
+}
+
+function refreshBuildUI() {
+  for (const btn of buildbar.children) {
+    const t = TURRET_TYPES[btn.dataset.type];
+    btn.classList.toggle("active", selectedType === btn.dataset.type);
+    btn.classList.toggle("poor", gold < t.cost);
+  }
+}
+
+// ---------- Upgrade panel ----------
+const upPanel = document.getElementById("upgradePanel");
+function showUpgrade(t, x, y) {
+  upPanel.style.display = "block";
+  document.getElementById("upTitle").textContent = TURRET_TYPES[t.type].name + " LVL " + t.level;
+  document.getElementById("upTitle").style.color = TURRET_TYPES[t.type].color;
+  document.getElementById("upLevel").textContent = t.level;
+  document.getElementById("upDmg").textContent = Math.round(t.dmg);
+  document.getElementById("upRange").textContent = Math.round(t.range);
+  const cost = upgradeCost(t);
+  document.getElementById("upBtn").textContent = "업그레이드 (◈ " + cost + ")";
+  document.getElementById("upBtn").disabled = gold < cost || t.level >= 5;
+  document.getElementById("sellBtn").textContent = "철거 (◈ " + sellValue(t) + ")";
+  // position near turret, clamped
+  const px = Math.min(Math.max(x, 10), W - 190);
+  const py = Math.min(Math.max(y - 120, 50), H - 160);
+  upPanel.style.left = px + "px";
+  upPanel.style.top = py + "px";
+}
+function hideUpgrade() {
+  upPanel.style.display = "none";
+  selectedTurret = null;
+}
+function upgradeCost(t) { return Math.round(TURRET_TYPES[t.type].cost * 0.8 * t.level); }
+function sellValue(t) {
+  let total = TURRET_TYPES[t.type].cost;
+  for (let l = 1; l < t.level; l++) total += Math.round(TURRET_TYPES[t.type].cost * 0.8 * l);
+  return Math.round(total * 0.6);
+}
+document.getElementById("upBtn").addEventListener("click", () => {
+  const t = selectedTurret;
+  if (!t) return;
+  const c = upgradeCost(t);
+  if (gold < c || t.level >= 5) return;
+  gold -= c;
+  t.level++;
+  t.dmg *= 1.45;
+  t.range *= 1.1;
+  t.rate *= 0.92;
+  updateHUD();
+  showUpgrade(t, t.x, t.y);
+});
+document.getElementById("sellBtn").addEventListener("click", () => {
+  const t = selectedTurret;
+  if (!t) return;
+  gold += sellValue(t);
+  turrets = turrets.filter(x => x !== t);
+  hideUpgrade();
+  updateHUD();
+});
+
+// ---------- HUD ----------
+function updateHUD() {
+  document.getElementById("goldNum").textContent = Math.floor(gold);
+  document.getElementById("hpNum").textContent = Math.ceil(core.hp);
+  refreshBuildUI();
+}
+
+// ---------- Input ----------
+function getMousePos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function getTouchPos(t) {
+  const r = canvas.getBoundingClientRect();
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+let touchMoved = false;
+let longPressTimer = null;
+let longPressFired = false;
+function clearLongPress() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}
+function fireAction(p) {
+  if (!gameRunning) return;
+  if (selectedType) {
+    const def = TURRET_TYPES[selectedType];
+    if (gold >= def.cost && canBuild(p.x, p.y)) {
+      gold -= def.cost;
+      turrets.push({
+        type: selectedType, x: p.x, y: p.y,
+        level: 1, dmg: def.dmg, range: def.range, rate: def.rate,
+        cd: 0, angle: 0, invested: def.cost,
+      });
+      updateHUD();
+    }
+  } else {
+    let found = null;
+    for (const t of turrets) {
+      if (Math.hypot(p.x - t.x, p.y - t.y) < 24) { found = t; break; }
+    }
+    if (found) {
+      selectedTurret = found;
+      showUpgrade(found, found.x, found.y);
+    } else {
+      hideUpgrade();
+    }
+  }
+}
+// ---------- Touch handlers (mobile) ----------
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const p = getTouchPos(t);
+  mouseX = p.x; mouseY = p.y;
+  touchMoved = false;
+  longPressFired = false;
+  // long-press → cancel build/selection (mobile substitute for right-click)
+  clearLongPress();
+  longPressTimer = setTimeout(() => {
+    longPressFired = true;
+    selectedType = null;
+    hideUpgrade();
+    refreshBuildUI();
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 480);
+}, { passive: false });
+
+canvas.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const p = getTouchPos(t);
+  if (Math.hypot(p.x - mouseX, p.y - mouseY) > 12) {
+    touchMoved = true;
+    clearLongPress();
+  }
+  mouseX = p.x; mouseY = p.y;
+}, { passive: false });
+
+canvas.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  clearLongPress();
+  if (longPressFired || touchMoved) return; // was a long-press or a drag
+  const t = e.changedTouches[0];
+  const p = getTouchPos(t);
+  mouseX = p.x; mouseY = p.y;
+  fireAction(p);
+}, { passive: false });
+
+canvas.addEventListener("touchcancel", (e) => {
+  e.preventDefault();
+  clearLongPress();
+}, { passive: false });
+
+// Suppress the synthetic mouse events that follow a touch on mobile
+let lastTouchEnd = 0;
+canvas.addEventListener("touchend", () => { lastTouchEnd = Date.now(); });
+canvas.addEventListener("click", (e) => {
+  if (Date.now() - lastTouchEnd < 600) return; // ignore post-touch synthetic click
+  if (!gameRunning) return;
+  const p = getMousePos(e);
+  fireAction(p);
+});
+canvas.addEventListener("mousemove", (e) => {
+  const p = getMousePos(e);
+  mouseX = p.x; mouseY = p.y;
+  // hover tooltip
+  const tip = document.getElementById("tooltip");
+  let hover = null;
+  for (const t of turrets) {
+    if (Math.hypot(p.x - t.x, p.y - t.y) < 20) { hover = t; break; }
+  }
+  if (hover && !selectedType) {
+    const tt = TURRET_TYPES[hover.type];
+    tip.style.display = "block";
+    tip.style.left = (p.x + 14) + "px";
+    tip.style.top = (p.y - 10) + "px";
+    tip.innerHTML = `<b style="color:${tt.color}">${tt.name} Lv${hover.level}</b><br>DMG ${Math.round(hover.dmg)} · RNG ${Math.round(hover.range)}`;
+  } else {
+    tip.style.display = "none";
+  }
+});
+let mouseX = 0, mouseY = 0;
+
+canvas.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  selectedType = null;
+  hideUpgrade();
+  refreshBuildUI();
+});
+
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && gameRunning) {
+    e.preventDefault();
+    if (waveState === "between" || waveState === "idle") startWave();
+  }
+  if (e.key === "Escape") {
+    selectedType = null;
+    hideUpgrade();
+    refreshBuildUI();
+  }
+});
+
+// ---------- Start ----------
+const waveBtn = document.getElementById("waveBtn");
+waveBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (gameRunning && (waveState === "between" || waveState === "idle")) startWave();
+});
+document.getElementById("startBtn").addEventListener("click", () => {
+  document.getElementById("overlay").classList.add("hidden");
+  gameRunning = true;
+  waveState = "idle";
+  updateHUD();
+  setTimeout(() => startWave(), 800);
+});
+function refreshWaveBtn() {
+  const show = gameRunning && (waveState === "between" || waveState === "idle") && !gameOver;
+  waveBtn.classList.toggle("hidden", !show);
+}
+
+function endGame() {
+  gameOver = true;
+  gameRunning = false;
+  refreshWaveBtn();
+  const ov = document.getElementById("overlay");
+  ov.classList.remove("hidden");
+  ov.querySelector("h1").textContent = "CORE LOST";
+  ov.querySelector("h2").textContent = `WAVE ${wave} REACHED`;
+  ov.querySelector("p").innerHTML = "네온 코어가 파괴됐다. 다시 도전하라.";
+  const b = ov.querySelector(".bigbtn");
+  b.textContent = "RETRY";
+  b.onclick = () => location.reload();
+}
+
+// ---------- Particles ----------
+function spawnParticles(x, y, color, n, speed) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = speed * (0.4 + Math.random() * 0.8);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 0.5 + Math.random() * 0.4,
+      maxLife: 0.9,
+      color,
+      size: 1.5 + Math.random() * 2.5,
+    });
+  }
+}
+
+// ---------- Update ----------
+function update(dt) {
+  if (!gameRunning) return;
+
+  // shake decay
+  if (shakeT > 0) shakeT -= dt;
+
+  // spawn enemies
+  if (waveState === "spawning" && toSpawn.length > 0) {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      const [type, hpMul, spMul] = toSpawn.shift();
+      if (type === "boss") {
+        spawnBoss(bossTierForWave(wave));
+      } else {
+        enemies.push(makeEnemy(type, hpMul, spMul));
+      }
+      spawnTimer = type === "boss" ? 1.4 : spawnInterval;
+    }
+    if (toSpawn.length === 0) waveState = "active";
+  }
+
+  // enemies move
+  const now = performance.now() / 1000;
+  for (const e of enemies) {
+    if (!e.alive) continue;
+
+    // ---- BOSS behavior: distinct pattern per tier ----
+    if (e.boss) {
+      updateBoss(e, dt, now);
+    }
+
+    const pos = positionOnPath(e.dist);
+    e.x = pos.x; e.y = pos.y;
+    if (e.hitFlash > 0) e.hitFlash -= dt;
+    if (e.dist >= pathLen) {
+      e.alive = false;
+      const dmg = e.boss ? (e.coreDmg || 30) : (e.type === "tank" ? 12 : 6);
+      core.hp -= dmg;
+      shakeT = 0.3;
+      spawnParticles(core.x, core.y, "#ff5e8a", 16, 160);
+      if (core.hp <= 0) {
+        core.hp = 0;
+        updateHUD();
+        endGame();
+      }
+    }
+  }
+  enemies = enemies.filter(e => e.alive);
+
+  // turrets fire
+  for (const t of turrets) {
+    t.cd -= dt;
+    // find target: furthest along path within range
+    let target = null, bestDist = -1;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const d = Math.hypot(e.x - t.x, e.y - t.y);
+      if (d <= sr(t.range) && e.dist > bestDist) {
+        bestDist = e.dist; target = e;
+      }
+    }
+    if (target) {
+      t.angle = Math.atan2(target.y - t.y, target.x - t.x);
+      if (t.cd <= 0) {
+        t.cd = t.rate;
+        projectiles.push({
+          x: t.x, y: t.y,
+          target,
+          speed: t.type === "rail" ? 900 : 520,
+          dmg: t.dmg,
+          color: TURRET_TYPES[t.type].proj,
+          trail: t.type === "rail" ? 24 : 10,
+          alive: true,
+        });
+      }
+    }
+  }
+
+  // projectiles
+  for (const p of projectiles) {
+    if (!p.alive) continue;
+    const t = p.target;
+    if (!t || !t.alive) { p.alive = false; continue; }
+    const dx = t.x - p.x, dy = t.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d < t.r + 6) {
+      // hit
+      t.hp -= p.dmg;
+      t.hitFlash = 0.1;
+      p.alive = false;
+      spawnParticles(t.x, t.y, p.color, 6, 120);
+      if (t.hp <= 0) {
+        t.alive = false;
+        gold += t.reward;
+        spawnParticles(t.x, t.y, t.color, 18, 200);
+        updateHUD();
+      }
+    } else {
+      p.x += (dx / d) * p.speed * dt;
+      p.y += (dy / d) * p.speed * dt;
+    }
+  }
+  projectiles = projectiles.filter(p => p.alive);
+
+  // particles
+  for (const pt of particles) {
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+    pt.vx *= 0.94; pt.vy *= 0.94;
+    pt.life -= dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+
+  // wave complete
+  if (waveState === "active" && enemies.length === 0) {
+    waveState = "between";
+    const bonus = 20 + wave * 5;
+    gold += bonus;
+    updateHUD();
+    refreshWaveBtn();
+    setTimeout(() => {
+      if (gameRunning) startWave();
+    }, 2500);
+    waveState = "between_wait";
+  }
+  if (waveState === "between_wait") {
+    // handled by timeout above
+  }
+}
+
+// ---------- Render ----------
+function drawGrid() {
+  ctx.strokeStyle = "rgba(30, 60, 110, 0.18)";
+  ctx.lineWidth = 1;
+  const cell = 40;
+  ctx.beginPath();
+  for (let x = 0; x < W; x += cell) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y < H; y += cell) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+}
+
+function drawPath() {
+  // glow
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(0, 229, 255, 0.10)";
+  ctx.lineWidth = 46;
+  tracePath();
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(0, 229, 255, 0.22)";
+  ctx.lineWidth = 26;
+  tracePath();
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(120, 230, 255, 0.55)";
+  ctx.lineWidth = 4;
+  tracePath();
+  ctx.stroke();
+  // animated dashes
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 18]);
+  ctx.lineDashOffset = -(performance.now() / 40);
+  tracePath();
+  ctx.stroke();
+  ctx.restore();
+}
+function tracePath() {
+  ctx.beginPath();
+  ctx.moveTo(path[0].x, path[0].y);
+  for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+}
+
+function drawCore() {
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
+  // aura
+  const g = ctx.createRadialGradient(core.x, core.y, core.r * 0.3, core.x, core.y, core.r * 2.6);
+  g.addColorStop(0, "rgba(0,229,255,0.5)");
+  g.addColorStop(1, "rgba(0,229,255,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(core.x, core.y, core.r * 2.6, 0, Math.PI * 2);
+  ctx.fill();
+  // hex body
+  ctx.save();
+  ctx.translate(core.x, core.y);
+  ctx.rotate(performance.now() / 2000);
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const rr = core.r * (0.9 + pulse * 0.12);
+    if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  const hpRatio = core.hp / core.maxHp;
+  const col = hpRatio > 0.5 ? "#00e5ff" : (hpRatio > 0.25 ? "#ffd75e" : "#ff5e8a");
+  ctx.fillStyle = "rgba(5,10,25,0.9)";
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 3;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 22;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  // inner
+  ctx.rotate(-performance.now() / 1200);
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    if (i === 0) ctx.moveTo(Math.cos(a) * core.r * 0.5, Math.sin(a) * core.r * 0.5);
+    else ctx.lineTo(Math.cos(a) * core.r * 0.5, Math.sin(a) * core.r * 0.5);
+  }
+  ctx.closePath();
+  ctx.fillStyle = col;
+  ctx.globalAlpha = 0.5 + pulse * 0.5;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawTurret(t) {
+  const def = TURRET_TYPES[t.type];
+  const isSel = t === selectedTurret;
+  // range ring when selected or hovered
+  if (isSel || (mouseX && mouseY && Math.hypot(mouseX - t.x, mouseY - t.y) < 24 && !selectedType)) {
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, sr(t.range), 0, Math.PI * 2);
+    ctx.strokeStyle = isSel ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.15)";
+    ctx.fillStyle = def.color + "12";
+    ctx.lineWidth = 1.5;
+    ctx.fill();
+    ctx.stroke();
+  }
+  // base
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  ctx.shadowColor = def.color;
+  ctx.shadowBlur = 14;
+  // base circle
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.fillStyle = "#0a1428";
+  ctx.fill();
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // barrel
+  ctx.rotate(t.angle);
+  ctx.fillStyle = def.color;
+  ctx.fillRect(0, -3, 18 + t.level * 1.5, 6);
+  ctx.restore();
+  // level pips
+  for (let i = 0; i < t.level; i++) {
+    ctx.beginPath();
+    ctx.arc(t.x - 10 + i * 5, t.y + 20, 1.8, 0, Math.PI * 2);
+    ctx.fillStyle = def.color;
+    ctx.fill();
+  }
+  if (isSel) {
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 22, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawEnemy(e) {
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  const flash = e.hitFlash > 0;
+  const col = flash ? "#ffffff" : e.color;
+  ctx.shadowColor = e.color;
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = col;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (e.shape === "tri") {
+    ctx.moveTo(e.r, 0); ctx.lineTo(-e.r * 0.7, e.r * 0.7); ctx.lineTo(-e.r * 0.7, -e.r * 0.7);
+  } else if (e.shape === "diamond") {
+    ctx.moveTo(e.r, 0); ctx.lineTo(0, e.r); ctx.lineTo(-e.r, 0); ctx.lineTo(0, -e.r);
+  } else if (e.shape === "hex") {
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + performance.now() / 800;
+      if (i === 0) ctx.moveTo(Math.cos(a) * e.r, Math.sin(a) * e.r);
+      else ctx.lineTo(Math.cos(a) * e.r, Math.sin(a) * e.r);
+    }
+  } else { // boss
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + performance.now() / 600;
+      const rr = e.r * (i % 2 === 0 ? 1 : 0.72);
+      if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+      else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+  // hp bar
+  if (e.hp < e.maxHp) {
+    const w = e.r * 2.2;
+    const ratio = Math.max(0, e.hp / e.maxHp);
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(e.x - w / 2, e.y - e.r - 9, w, 4);
+    ctx.fillStyle = ratio > 0.5 ? "#4dff88" : (ratio > 0.25 ? "#ffd75e" : "#ff4d6d");
+    ctx.fillRect(e.x - w / 2, e.y - e.r - 9, w * ratio, 4);
+  }
+}
+
+function drawProjectile(p) {
+  ctx.save();
+  ctx.shadowColor = p.color;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = p.color;
+  // trail
+  const t = p.target;
+  if (t && t.alive) {
+    const dx = t.x - p.x, dy = t.y - p.y;
+    const d = Math.hypot(dx, dy) || 1;
+    ctx.strokeStyle = p.color + "66";
+    ctx.lineWidth = p.trail * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - (dx / d) * p.trail, p.y - (dy / d) * p.trail);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.trail * 0.28 + 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBuildPreview() {
+  if (!selectedType) return;
+  const def = TURRET_TYPES[selectedType];
+  const ok = canBuild(mouseX, mouseY) && gold >= def.cost;
+  const col = ok ? def.color : "#ff4d6d";
+  // range
+  ctx.beginPath();
+  ctx.arc(mouseX, mouseY, sr(def.range), 0, Math.PI * 2);
+  ctx.fillStyle = col + "15";
+  ctx.strokeStyle = col + "88";
+  ctx.lineWidth = 1.5;
+  ctx.fill();
+  ctx.stroke();
+  // ghost
+  ctx.beginPath();
+  ctx.arc(mouseX, mouseY, 14, 0, Math.PI * 2);
+  ctx.fillStyle = col + "44";
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const a = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawWaveBanner() {
+  if (waveState === "between") {
+    ctx.save();
+    ctx.font = `bold ${Math.round(26 * uiScale) + 4}px 'Segoe UI', sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(125,255,212,0.85)";
+    ctx.shadowColor = "#7dffd4";
+    ctx.shadowBlur = 18;
+    const hint = isMobile ? "Tap ▶ to start now" : "Space to start now";
+    ctx.fillText(`WAVE ${wave + 1} INCOMING — ${hint}`, W / 2, 90);
+    ctx.restore();
+  }
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  if (shakeT > 0) {
+    const m = shakeT * 14;
+    ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+  }
+  drawGrid();
+  drawPath();
+  drawCore();
+  for (const t of turrets) drawTurret(t);
+  for (const e of enemies) drawEnemy(e);
+  for (const p of projectiles) drawProjectile(p);
+  drawParticles();
+  drawBuildPreview();
+  drawBossBar();
+  drawWaveBanner();
+  ctx.restore();
+}
+
+function drawBossBar() {
+  const boss = enemies.find(e => e.boss && e.alive);
+  if (!boss) return;
+  const padX = 40, barY = 58;
+  const bw = Math.min(W - padX * 2, 720);
+  const bx = (W - bw) / 2;
+  const ratio = Math.max(0, boss.hp / boss.maxHp);
+  ctx.save();
+  // name
+  ctx.font = `bold ${Math.round(15 * uiScale) + 2}px 'Segoe UI', sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillStyle = boss.color;
+  ctx.shadowColor = boss.color;
+  ctx.shadowBlur = 14;
+  ctx.fillText(boss.name + "  ·  STAGE " + wave, W / 2, barY - 6);
+  ctx.shadowBlur = 0;
+  // bar bg
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  ctx.fillRect(bx, barY, bw, 10);
+  // bar fill
+  const g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+  g.addColorStop(0, boss.color);
+  g.addColorStop(1, "#ffffff");
+  ctx.fillStyle = g;
+  ctx.fillRect(bx, barY, bw * ratio, 10);
+  ctx.strokeStyle = boss.color;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(bx, barY, bw, 10);
+  ctx.restore();
+}
+
+// ---------- Main loop ----------
+function loop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000 || 0);
+  lastTime = time;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ---------- Init ----------
+const touchHint = document.getElementById("touchHint");
+const hasTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints > 0) ||
+  (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+if (!hasTouch) touchHint.style.display = "none";
+// auto-fade the hint after a while so it never blocks the view
+setTimeout(() => { touchHint.style.transition = "opacity 1s"; touchHint.style.opacity = "0"; }, 9000);
+resize();
+buildUI();
+updateHUD();
+refreshWaveBtn();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
