@@ -255,3 +255,4 @@ simple_llm_test_q36_dragonflight_v3    # v2 폴더를 복사해서 스테이지�
 - 모델 정보: [00_model_info](../00_model_info/README.md)
 - 저장소 첫 화면: [llm_model_test](../README.md)
 - 같은 형식의 첫 시험: [01 테트리스](../01_tetris_game_test/README.md)
+- 다음 시험: [03 디펜스](../03_defense_game_test/)
