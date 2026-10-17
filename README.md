@@ -112,8 +112,10 @@
 - simple_llm_test_c1_dragonflight_v2 — 파일 없음
 - simple_llm_test_c7_dragonflight_v1 — 파일 없음
 - simple_llm_test_c7_dragonflight_v2 — 파일 없음
+- simple_llm_test_c7_dragonflight_v3 — 파일 없음
 - simple_llm_test_c7r_dragonflight_v1 — 파일 없음
 - simple_llm_test_c7r_dragonflight_v2 — 파일 없음
+- simple_llm_test_c7r_dragonflight_v3 — 파일 없음
 - [simple_llm_test_cn_dragonflight_v1](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_cn_dragonflight_v1/index.html)
 - [simple_llm_test_cn_dragonflight_v2](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_cn_dragonflight_v2/index.html)
 - [simple_llm_test_cn_dragonflight_v3](https://genishs.github.io/llm_model_test/02_dragonflight_game_test/simple_llm_test_cn_dragonflight_v3/index.html)
