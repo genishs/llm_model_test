@@ -1,0 +1,92 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #111;
+}
+
+#game-container {
+    text-align: center;
+}
+
+#game-info {
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+#score, #level, #lines {
+    margin: 5px;
+    font-size: 18px;
+}
+
+#game-canvas {
+    border: 2px solid #fff;
+    background-color: #000;
+}
+
+#game-over {
+    color: #ff0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0,0,0,0.7);
+    padding: 20px;
+    border: 2px solid #ff0;
+    border-radius: 10px;
+}
+
+#restart-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #0f0;
+    color: #000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#restart-btn:hover {
+    background-color: #0a0;
+}
+
+#touch-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-radius: 20px;
+    display: none;
+}
+
+.touch-left,
+.touch-up,
+.touch-right,
+.touch-down,
+.touch-rotate {
+    background: hsl(200, 100%, 50%);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    user-select: none;
+    border: 2px solid white;
+}
+    background-color: #0a0;
+}
