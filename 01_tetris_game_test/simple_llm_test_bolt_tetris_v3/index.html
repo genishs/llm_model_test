@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tetris (Atari 1988 Style)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #ffd700;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #game-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    background: #2a2a2a;
+    border: 4px solid #444;
+    border-radius: 8px;
+  }
+  canvas {
+    background: #000;
+    border: 2px solid #666;
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+  #sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .stat-box {
+    background: #111;
+    border: 2px solid #444;
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 5px;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffd700;
+  }
+  .controls {
+    background: #111;
+    border: 2px solid #444;
+    padding: 15px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: #ccc;
+  }
+  .controls b { color: #ffd700; }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h2 { font-size: 2rem; margin-bottom: 1rem; color: #ffd700; }
+  button {
+    background: #ffd700;
+    color: #000;
+    border: none;
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    box-shadow: 2px 2px 0 #000;
+    transition: transform 0.1s;
+  }
+  button:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffd700;
+    pointer-events: none;
+    display: none;
+    text-shadow: 2px 2px 0 #000;
+  }
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    h1 { font-size: 1.8rem; }
+    canvas { width: 240px; height: 400px; }
+    #game-container { flex-direction: column; gap: 10px; padding: 10px; }
+    #sidebar { width: 100%; }
+  }
+  .touch-controls {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+    padding: 10px;
+    background: #111;
+    border: 2px solid #444;
+    border-radius: 4px;
+  }
+  .touch-btn {
+    width: 100%;
+    height: 60px;
+    background: #ffd700;
+    color: #000;
+    border: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+    font-family: inherit;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 #000;
+  }
+  .touch-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+  @media (max-width: 600px) {
+    .touch-controls { display: grid; }
+  }
+</style>
+</head>
+<body>
+<h1>Tetris</h1>
+<div id="game-container">
+  <canvas id="tetris" width="240" height="400"></canvas>
+  <div id="sidebar">
+    <div class="stat-box">
+      <div class="stat-label">NEXT</div>
+      <canvas id="next" width="120" height="120"></canvas>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">SCORE</div>
+      <div class="stat-value" id="score">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">LINES</div>
+      <div class="stat-value" id="lines">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">LEVEL</div>
+      <div class="stat-value" id="level">1</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">CREDIT</div>
+      <div class="stat-value" id="credit">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">COIN</div>
+      <div class="stat-value" id="coin">0</div>
+    </div>
+  <div class="controls">
+    <b>조작법:</b><br>
+    ← → : 이동<br>
+    ↑ : 회전<br>
+    ↓ : 소프트 드롭<br>
+    Space : 하드 드롭<br>
+    P : 일시정지/재개<br>
+    R : 게임 재시작<br>
+    1~4 : 코인 삽입 (크레딧 +1)<br>
+    C : 컨티뉴
+  </div>
+</div>
+  <div class="touch-controls">
+    <button class="touch-btn">←</button>
+    <button class="touch-btn">↑</button>
+    <button class="touch-btn">→</button>
+    <button class="touch-btn">↓</button>
+    <button class="touch-btn" style="grid-column: 2 / span 2">드롭</button>
+    <button class="touch-btn" style="grid-column: 1 / span 2">회전</button>
+    <button class="touch-btn" style="grid-column: 3 / span 2">리셋</button>
+    <button class="touch-btn" style="grid-column: 1 / span 3">코인</button>
+  </div>
+  </div>
+</div>
+<div id="overlay">
+  <h2 id="overlay-title">게임 오버</h2>
+  <button id="restart-btn">재시작</button>
+</div>
+<div id="message">TETRIS</div>
+<script>
+const canvas = document.getElementById('tetris');
+const ctx = canvas.getContext('2d');
+const nextCanvas = document.getElementById('next');
+const nextCtx = nextCanvas.getContext('2d');
+
+const COLORS = [
+  null,
+  '#00ffff', // I
+  '#ffff00', // O
+  '#00ff00', // S
+  '#ff00ff', // Z
+  '#0000ff', // J
+  '#ffa500', // L
+  '#808080', // T
+];
+
+const PIECES = [
+  // I
+  [
+    [0, 0, 0, 0],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+  ],
+  // O
+  [
+    [0, 0, 0, 0],
+    [0, 1, 1, 0],
+    [0, 1, 1, 0],
+    [0, 0, 0, 0],
+  ],
+  // S
+  [
+    [0, 0, 0, 0],
+    [0, 1, 1, 0],
+    [1, 1, 0, 0],
+    [0, 0, 0, 0],
+  ],
+  // Z
+  [
+    [0, 0, 0, 0],
+    [1, 1, 0, 0],
+    [0, 1, 1, 0],
+    [0, 0, 0, 0],
+  ],
+  // J
+  [
+    [0, 0, 0, 0],
+    [1, 0, 0, 0],
+    [1, 1, 1, 0],
+    [0, 0, 0, 0],
+  ],
+  // L
+  [
+    [0, 0, 0, 0],
+    [0, 0, 1, 0],
+    [1, 1, 1, 0],
+    [0, 0, 0, 0],
+  ],
+  // T
+  [
+    [0, 0, 0, 0],
+    [0, 1, 0, 0],
+    [1, 1, 1, 0],
+    [0, 0, 0, 0],
+  ],
+];
+
+const COLS = 10;
+const ROWS = 20;
+const BLOCK = 24;
+
+let board;
+let score = 0;
+let lines = 0;
+let level = 1;
+let credit = 0;
+let coin = 0;
+let dropCounter = 0;
+let dropInterval = 1000;
+let lastTime = 0;
+let paused = false;
+let gameOver = false;
+let continueCountdown = 0;
+let continueTimer = null;
+
+let playerPos;
+let playerMatrix;
+let playerColor;
+
+function createMatrix(w, h) {
+  const matrix = [];
+  while (h--) {
+    matrix.push(new Array(w).fill(0));
+  }
+  return matrix;
+}
+
+function createPiece(type) {
+  if (type === 'I') {
+    return {
+      matrix: PIECES[0],
+      color: COLORS[1],
+    };
+  } else if (type === 'O') {
+    return {
+      matrix: PIECES[1],
+      color: COLORS[2],
+    };
+  } else if (type === 'S') {
+    return {
+      matrix: PIECES[2],
+      color: COLORS[3],
+    };
+  } else if (type === 'Z') {
+    return {
+      matrix: PIECES[3],
+      color: COLORS[4],
+    };
+  } else if (type === 'J') {
+    return {
+      matrix: PIECES[4],
+      color: COLORS[5],
+    };
+  } else if (type === 'L') {
+    return {
+      matrix: PIECES[5],
+      color: COLORS[6],
+    };
+  } else if (type === 'T') {
+    return {
+      matrix: PIECES[6],
+      color: COLORS[7],
+    };
+  }
+}
+
+function drawMatrix(matrix, offset, ctx, color) {
+  matrix.forEach((row, y) => {
+    row.forEach((value, x) => {
+      if (value !== 0) {
+        ctx.fillStyle = color;
+        ctx.fillRect(
+          (x + offset.x) * BLOCK,
+          (y + offset.y) * BLOCK,
+          BLOCK - 1,
+          BLOCK - 1
+        );
+      }
+    });
+  });
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawMatrix(board, { x: 0, y: 0 }, ctx, null);
+
+  drawMatrix(playerMatrix, playerPos, ctx, playerColor);
+}
+
+function merge() {
+  playerMatrix.forEach((row, y) => {
+    row.forEach((value, x) => {
+      if (value !== 0) {
+        board[y + playerPos.y][x + playerPos.x] = playerColor;
+      }
+    });
+  });
+}
+
+function rotate(matrix, dir) {
+  for (let y = 0; y < matrix.length; ++y) {
+    for (let x = 0; x < y; ++x) {
+      [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+    }
+  }
+  if (dir > 0) {
+    matrix.forEach(row => row.reverse());
+  } else {
+    matrix.reverse();
+  }
+}
+
+function collide(board, matrix, offset) {
+  for (let y = 0; y < matrix.length; ++y) {
+    for (let x = 0; x < matrix[y].length; ++x) {
+      if (matrix[y][x] !== 0 &&
+         (board[y + offset.y] && board[y + offset.y][x + offset.x]) !== 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function arenaSweep() {
+  let rowCount = 0;
+  outer: for (let y = board.length - 1; y > 0; --y) {
+    for (let x = 0; x < board[y].length; ++x) {
+      if (board[y][x] === 0) {
+        continue outer;
+      }
+    }
+    const row = board.splice(y, 1)[0].fill(0);
+    board.push(row);
+    ++rowCount;
+    --y;
+  }
+
+  if (rowCount > 0) {
+    score += rowCount * rowCount * 10 * level;
+    lines += rowCount;
+    level = Math.floor(lines / 10) + 1;
+    dropInterval = Math.max(100, 1000 - (level - 1) * 100);
+    updateStats();
+  }
+}
+
+function playerDrop() {
+  playerPos.y++;
+  if (collide(board, playerMatrix, playerPos)) {
+    playerPos.y--;
+    merge();
+    playerReset();
+    arenaSweep();
+    updateScore();
+  }
+  dropCounter = 0;
+}
+
+function playerMove(dir) {
+  playerPos.x += dir;
+  if (collide(board, playerMatrix, playerPos)) {
+    playerPos.x -= dir;
+  }
+}
+
+function playerRotate(dir) {
+  const m = playerMatrix.slice().map(row => row.slice());
+  rotate(m, dir);
+  const pos = playerPos.x + m[0].length / 2;
+  const cols = m[0].length;
+  let left = pos - Math.ceil(cols / 2);
+  let right = pos + Math.floor(cols / 2);
+  if (left < 0) {
+    playerPos.x += -left;
+  } else if (right > COLS) {
+    playerPos.x -= right - COLS;
+  }
+  if (collide(board, m, playerPos)) {
+    playerPos.x -= 1;
+    if (collide(board, m, playerPos)) {
+      playerPos.x += 1;
+      return;
+    }
+  }
+  playerMatrix = m;
+}
+
+function playerReset() {
+  const pieces = 'ILJOTSZ';
+  const type = pieces[pieces.length * Math.random() | 0];
+  playerMatrix = createPiece(type).matrix;
+  playerColor = createPiece(type).color;
+  playerPos.y = 0;
+  playerPos.x = (COLS - playerMatrix[0].length) / 2;
+}
+
+function updateScore() {
+  document.getElementById('score').textContent = score;
+}
+
+function updateStats() {
+  document.getElementById('score').textContent = score;
+  document.getElementById('lines').textContent = lines;
+  document.getElementById('level').textContent = level;
+  document.getElementById('credit').textContent = credit;
+  document.getElementById('coin').textContent = coin;
+}
+
+function drawNext() {
+  nextCtx.fillStyle = '#000';
+  nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+  const nextPiece = createPiece('I');
+  const type = 'ILJOTSZ'[Math.floor(Math.random() * 7)];
+  nextPiece.matrix = createPiece(type).matrix;
+  nextPiece.color = createPiece(type).color;
+  const offset = { x: 2, y: 2 };
+  drawMatrix(nextPiece.matrix, offset, nextCtx, nextPiece.color);
+  window.nextPiece = nextPiece;
+}
+
+function playerResetWithNext() {
+  playerMatrix = window.nextPiece.matrix;
+  playerColor = window.nextPiece.color;
+  playerPos.y = 0;
+  playerPos.x = (COLS - playerMatrix[0].length) / 2;
+  drawNext();
+}
+
+function update() {
+  const now = performance.now();
+  const delta = now - lastTime;
+  lastTime = now;
+
+  if (gameOver || paused) return;
+
+  dropCounter += delta;
+  if (dropCounter > dropInterval) {
+    playerDrop();
+  }
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+function start() {
+  board = createMatrix(COLS, ROWS);
+  score = 0;
+  lines = 0;
+  level = 1;
+  dropInterval = 1000;
+  dropCounter = 0;
+  paused = false;
+  gameOver = false;
+  continueCountdown = 0;
+  if (continueTimer) clearTimeout(continueTimer);
+  continueTimer = null;
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('message').style.display = 'none';
+  updateStats();
+  playerResetWithNext();
+  lastTime = performance.now();
+  update();
+}
+
+function gameOverScreen() {
+  gameOver = true;
+  document.getElementById('overlay-title').textContent = 'GAME OVER';
+  document.getElementById('overlay').classList.remove('hidden');
+  document.getElementById('message').style.display = 'block';
+  if (credit > 0) {
+    showContinue();
+  }
+}
+
+function showContinue() {
+  document.getElementById('overlay-title').textContent = '컨티뉴';
+  credit--;
+  updateStats();
+  continueCountdown = 5;
+  document.getElementById('overlay').innerHTML = '<h2 id="overlay-title">컨티뉴</h2><p id="continue-msg">크레딧을 사용해 이어서 할 수 있습니다. (5초)</p><button id="continue-btn">이어하기</button>';
+  const overlay = document.getElementById('overlay');
+  overlay.innerHTML = '<h2 id="overlay-title">컨티뉴</h2><p id="continue-msg">크레딧을 사용해 이어서 할 수 있습니다. (' + continueCountdown + '초)</p><button id="continue-btn">이어하기</button>';
+  continueTimer = setInterval(() => {
+    continueCountdown--;
+    const msg = document.getElementById('continue-msg');
+    if (msg) msg.textContent = '크레딧을 사용해 이어서 할 수 있습니다. (' + continueCountdown + '초)';
+    if (continueCountdown <= 0) {
+      clearInterval(continueTimer);
+      continueTimer = null;
+      backToTitle();
+    }
+  }, 1000);
+}
+
+function backToTitle() {
+  document.getElementById('overlay').innerHTML = '<h2 id="overlay-title">게임 오버</h2><button id="restart-btn">재시작</button>';
+  document.getElementById('restart-btn').addEventListener('click', start);
+}
+
+function insertCoin() {
+  if (gameOver) return;
+  coin++;
+  credit++;
+  updateStats();
+}
+
+document.addEventListener('keydown', e => {
+  if (gameOver || paused) {
+    if (e.keyCode === 82) { // R
+      start();
+    } else if (e.keyCode === 67) { // C
+      if (credit > 0 && continueTimer) {
+        clearInterval(continueTimer);
+        continueTimer = null;
+        continueCountdown = 0;
+        document.getElementById('overlay').classList.add('hidden');
+        document.getElementById('message').style.display = 'none';
+        updateStats();
+        lastTime = performance.now();
+        update();
+      }
+    }
+    return;
+  }
+
+  if (e.keyCode === 49 || e.keyCode === 50 || e.keyCode === 51 || e.keyCode === 52) { // 1~4
+    insertCoin();
+    return;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (gameOver || paused) {
+    if (e.keyCode === 82) { // R
+      start();
+    }
+    return;
+  }
+
+  if (e.keyCode === 80) { // P
+    paused = !paused;
+    if (paused) {
+      document.getElementById('overlay-title').textContent = 'PAUSED';
+      document.getElementById('overlay').classList.remove('hidden');
+    } else {
+      document.getElementById('overlay').classList.add('hidden');
+      lastTime = performance.now();
+    }
+    return;
+  }
+
+  if (e.keyCode === 37) { // Left
+    playerMove(-1);
+  } else if (e.keyCode === 39) { // Right
+    playerMove(1);
+  } else if (e.keyCode === 38) { // Up
+    playerRotate(1);
+  } else if (e.keyCode === 40) { // Down
+    playerDrop();
+  } else if (e.keyCode === 32) { // Space
+    while (!collide(board, playerMatrix, playerPos)) {
+      playerPos.y++;
+    }
+    playerPos.y--;
+    merge();
+    playerResetWithNext();
+    arenaSweep();
+    updateScore();
+    dropCounter = 0;
+  }
+});
+
+document.getElementById('restart-btn').addEventListener('click', start);
+
+function touchMove(dir) {
+  playerMove(dir);
+}
+
+function touchRotate() {
+  playerRotate(1);
+}
+
+function touchDrop() {
+  while (!collide(board, playerMatrix, playerPos)) {
+    playerPos.y++;
+  }
+  playerPos.y--;
+  merge();
+  playerResetWithNext();
+  arenaSweep();
+  updateScore();
+  dropCounter = 0;
+}
+
+function touchReset() {
+  if (gameOver || paused) {
+    start();
+    return;
+  }
+  if (confirm('게임을 재시작하시겠습니까?')) {
+    start();
+  }
+}
+
+function touchCoin() {
+  if (gameOver) return;
+  insertCoin();
+}
+
+document.addEventListener('touchstart', e => {
+  const touch = e.changedTouches[0];
+  const x = touch.clientX;
+  const y = touch.clientY;
+
+  const leftBtn = document.querySelector('.touch-btn:nth-child(1)');
+  const upBtn = document.querySelector('.touch-btn:nth-child(2)');
+  const rightBtn = document.querySelector('.touch-btn:nth-child(3)');
+  const downBtn = document.querySelector('.touch-btn:nth-child(4)');
+  const dropBtn = document.querySelector('.touch-btn:nth-child(5)');
+  const rotateBtn = document.querySelector('.touch-btn:nth-child(6)');
+  const resetBtn = document.querySelector('.touch-btn:nth-child(7)');
+
+  const isInside = (btn) => btn && btn.getBoundingClientRect().contains(x, y);
+
+  if (isInside(leftBtn)) touchMove(-1);
+  else if (isInside(rightBtn)) touchMove(1);
+  else if (isInside(upBtn)) touchRotate();
+  else if (isInside(downBtn)) playerDrop();
+  else if (isInside(dropBtn)) touchDrop();
+  else if (isInside(rotateBtn)) touchRotate();
+  else if (isInside(resetBtn)) touchReset();
+  else if (isInside(document.querySelector('.touch-btn:nth-child(8)'))) touchCoin();
+});
+
+start();
+</script>
+</body>
+</html>
